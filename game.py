@@ -1,4 +1,10 @@
-"""Основной файл игры — точка входа."""
+"""Основной файл игры — точка входа.
+
+Game-loop по схеме Glenn Fiedler "Fix Your Timestep!":
+  - физика идёт фиксированным шагом FIXED_DT (60 Гц);
+  - frame_dt накапливается в accumulator, выполняется N полных шагов;
+  - рендер интерполирует позицию мяча между prev и curr состоянием.
+"""
 import pygame
 import pymunk
 import pymunk.pygame_util
@@ -8,17 +14,24 @@ from src.game.input_handler import InputAction, InputHandler
 from src.game.jump_controller import JumpController
 from src.utils.config import (
     DAMPING,
+    FIXED_DT,
     GRAVITY,
     GRAY,
     HEIGHT,
     JUMP_FORCE,
     MAX_CHARGE_TIME,
+    MAX_FRAME_DT,
     MOVE_FORCE,
     WHITE,
     WIDTH,
 )
 from src.utils.level import create_level
 from src.utils.physics import is_on_ground
+
+
+# JUMP_FORCE в config.py исторически выражен как «сила за один кадр 60 fps».
+# Чтобы сохранить ощущения управления, переводим её в импульс: F * FIXED_DT.
+JUMP_IMPULSE = JUMP_FORCE * FIXED_DT
 
 
 def main():
@@ -41,13 +54,18 @@ def main():
     obstacles, platforms = create_level(space)
 
     input_handler = InputHandler()
-    jump_controller = JumpController(MAX_CHARGE_TIME, JUMP_FORCE)
+    jump_controller = JumpController(MAX_CHARGE_TIME, JUMP_IMPULSE)
+
+    accumulator = 0.0
+    prev_ball_pos = ball.body.position
 
     running = True
     while running:
-        dt = clock.tick(60) / 1000.0
-        on_ground = is_on_ground(ball, space)
+        frame_dt = clock.tick(60) / 1000.0
+        accumulator += min(frame_dt, MAX_FRAME_DT)
 
+        # --- ввод (раз за кадр, без привязки к физическому шагу) -----------
+        on_ground = is_on_ground(ball, space)
         for event in pygame.event.get():
             action = input_handler.process_event(event)
             if action is InputAction.QUIT:
@@ -57,25 +75,41 @@ def main():
             elif action is InputAction.JUMP_RELEASE:
                 jump_event = jump_controller.release(on_ground=on_ground)
                 if jump_event is not None:
-                    ball.apply_force(jump_event.force)
+                    ball.apply_impulse(jump_event.impulse)
 
-        dx, dy = input_handler.get_movement()
-        if dx or dy:
-            ball.apply_force((dx * MOVE_FORCE, dy * MOVE_FORCE))
+        # --- физика: фиксированный шаг -------------------------------------
+        while accumulator >= FIXED_DT:
+            prev_ball_pos = pymunk.Vec2d(*ball.body.position)
 
-        jump_controller.update(dt, on_ground=on_ground)
+            dx, dy = input_handler.get_movement()
+            if dx or dy:
+                ball.apply_force((dx * MOVE_FORCE, dy * MOVE_FORCE))
+            jump_controller.update(
+                FIXED_DT, on_ground=is_on_ground(ball, space)
+            )
 
-        space.step(dt)
+            space.step(FIXED_DT)
+            accumulator -= FIXED_DT
+
+        # --- рендер с интерполяцией ----------------------------------------
+        alpha = accumulator / FIXED_DT
+        curr_pos = ball.body.position
+        ball_render_pos = prev_ball_pos * (1.0 - alpha) + curr_pos * alpha
 
         screen.fill(WHITE)
         for platform in platforms:
             platform.draw(screen)
         for obstacle in obstacles:
             obstacle.draw(screen)
-        ball.draw(screen)
+        ball.draw(screen, position=ball_render_pos)
 
-        if jump_controller.is_charging and on_ground:
-            _draw_charge_bar(screen, ball, jump_controller.charge_ratio)
+        if jump_controller.is_charging and is_on_ground(ball, space):
+            _draw_charge_bar(
+                screen,
+                ball_render_pos,
+                ball.radius,
+                jump_controller.charge_ratio,
+            )
 
         screen.blit(info_text, (10, 10))
         pygame.display.flip()
@@ -83,11 +117,11 @@ def main():
     pygame.quit()
 
 
-def _draw_charge_bar(screen, ball, charge_ratio):
+def _draw_charge_bar(screen, position, radius, charge_ratio):
     bar_width = 60
     bar_height = 8
-    bar_x = int(ball.body.position.x - bar_width // 2)
-    bar_y = int(ball.body.position.y + ball.radius + 10)
+    bar_x = int(position[0] - bar_width // 2)
+    bar_y = int(position[1] + radius + 10)
 
     pygame.draw.rect(screen, GRAY, (bar_x, bar_y, bar_width, bar_height))
     fill_width = int(bar_width * charge_ratio)

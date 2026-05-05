@@ -58,6 +58,16 @@ def test_max_charge_time_is_positive():
     assert config.MAX_CHARGE_TIME > 0
 
 
+def test_fixed_dt_is_positive_and_small():
+    assert 0 < config.FIXED_DT <= 1 / 30  # шаг физики разумно мелкий
+
+
+def test_max_frame_dt_protects_against_spiral_of_death():
+    """MAX_FRAME_DT > FIXED_DT, иначе ничего не зашагается; и ограничен сверху."""
+    assert config.MAX_FRAME_DT > config.FIXED_DT
+    assert config.MAX_FRAME_DT <= 1.0  # клампим до 1с — больше уже бессмысленно
+
+
 @pytest.mark.parametrize(
     "color_name", ["WHITE", "BLACK", "RED", "BLUE", "GREEN", "GRAY", "YELLOW"]
 )

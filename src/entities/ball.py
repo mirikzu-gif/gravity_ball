@@ -32,11 +32,17 @@ class Ball:
             space.add(self.body, self.shape)
         
     def apply_force(self, force):
-        """Применяет силу к мячу"""
+        """Применяет силу к мячу (действует один шаг space.step)."""
         self.body.apply_force_at_world_point(force, self.body.position)
-    
-    def draw(self, screen):
-        """Рисует мяч"""
-        pos = int(self.body.position.x), int(self.body.position.y)
+
+    def apply_impulse(self, impulse):
+        """Применяет мгновенный импульс — изменяет velocity сразу, не зависит от dt."""
+        self.body.apply_impulse_at_world_point(impulse, self.body.position)
+
+    def draw(self, screen, position=None):
+        """Рисует мяч. position позволяет передать интерполированную позицию для рендера."""
+        if position is None:
+            position = self.body.position
+        pos = int(position[0]), int(position[1])
         pygame.draw.circle(screen, RED, pos, self.radius)
         pygame.draw.circle(screen, BLACK, pos, self.radius, 2)

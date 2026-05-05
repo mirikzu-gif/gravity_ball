@@ -13,7 +13,7 @@ F = 100.0
 
 @pytest.fixture
 def controller():
-    return JumpController(max_charge_time=MAX_T, jump_force=F)
+    return JumpController(max_charge_time=MAX_T, jump_impulse=F)
 
 
 # ---------------------------------------------------------------------------
@@ -32,19 +32,19 @@ def test_initial_state_is_idle(controller):
 @pytest.mark.parametrize("max_t", [0, -1, -0.001])
 def test_constructor_rejects_non_positive_max_charge_time(max_t):
     with pytest.raises(ValueError):
-        JumpController(max_charge_time=max_t, jump_force=F)
+        JumpController(max_charge_time=max_t, jump_impulse=F)
 
 
-@pytest.mark.parametrize("force", [0, -100])
-def test_constructor_rejects_non_positive_force(force):
+@pytest.mark.parametrize("impulse", [0, -100])
+def test_constructor_rejects_non_positive_impulse(impulse):
     with pytest.raises(ValueError):
-        JumpController(max_charge_time=MAX_T, jump_force=force)
+        JumpController(max_charge_time=MAX_T, jump_impulse=impulse)
 
 
 @pytest.mark.parametrize("min_factor", [-0.1, 1.1])
 def test_constructor_rejects_invalid_min_factor(min_factor):
     with pytest.raises(ValueError):
-        JumpController(max_charge_time=MAX_T, jump_force=F, min_factor=min_factor)
+        JumpController(max_charge_time=MAX_T, jump_impulse=F, min_factor=min_factor)
 
 
 # ---------------------------------------------------------------------------
@@ -162,35 +162,35 @@ def test_update_when_idle_does_nothing(controller):
 
 
 # ---------------------------------------------------------------------------
-# Формула силы прыжка: 30% .. 100%
+# Формула импульса прыжка: 30% .. 100%
 # ---------------------------------------------------------------------------
 
 
-def test_min_jump_force_at_zero_charge(controller):
+def test_min_impulse_at_zero_charge(controller):
     controller.press(on_ground=True)
     event = controller.release(on_ground=True)
 
-    expected_force = F * 0.3
-    assert event.force == (0.0, -expected_force)
+    expected = F * 0.3
+    assert event.impulse == (0.0, -expected)
 
 
-def test_full_jump_force_at_max_charge(controller):
+def test_full_impulse_at_max_charge(controller):
     controller.press(on_ground=True)
     controller.update(MAX_T, on_ground=True)
     event = controller.release(on_ground=True)
 
-    assert event.force == (0.0, -F)
+    assert event.impulse == (0.0, -F)
 
 
-def test_half_charge_gives_65_percent_force(controller):
+def test_half_charge_gives_65_percent_impulse(controller):
     """0.3 + 0.7 * 0.5 = 0.65"""
     controller.press(on_ground=True)
     controller.update(MAX_T / 2, on_ground=True)
     event = controller.release(on_ground=True)
 
     expected = F * 0.65
-    assert event.force[0] == 0.0
-    assert event.force[1] == pytest.approx(-expected)
+    assert event.impulse[0] == 0.0
+    assert event.impulse[1] == pytest.approx(-expected)
 
 
 @pytest.mark.parametrize(
@@ -203,22 +203,22 @@ def test_half_charge_gives_65_percent_force(controller):
         (1.0, 1.0),
     ],
 )
-def test_force_formula_linear_30_to_100(charge_fraction, expected_factor):
+def test_impulse_formula_linear_30_to_100(charge_fraction, expected_factor):
     c = JumpController(MAX_T, F)
     c.press(on_ground=True)
     c.update(MAX_T * charge_fraction, on_ground=True)
     event = c.release(on_ground=True)
 
-    assert event.force[1] == pytest.approx(-F * expected_factor)
+    assert event.impulse[1] == pytest.approx(-F * expected_factor)
 
 
-def test_overcharge_does_not_exceed_full_force(controller):
-    """Если жмёшь дольше MAX_T — сила не превышает 100%."""
+def test_overcharge_does_not_exceed_full_impulse(controller):
+    """Если жмёшь дольше MAX_T — импульс не превышает 100%."""
     controller.press(on_ground=True)
     controller.update(MAX_T * 5, on_ground=True)
     event = controller.release(on_ground=True)
 
-    assert event.force[1] == pytest.approx(-F)
+    assert event.impulse[1] == pytest.approx(-F)
 
 
 # ---------------------------------------------------------------------------
@@ -239,11 +239,11 @@ def test_min_factor_zero_means_no_jump_at_zero_charge():
     c = JumpController(MAX_T, F, min_factor=0.0)
     c.press(on_ground=True)
     event = c.release(on_ground=True)
-    assert event.force[1] == pytest.approx(0.0)
+    assert event.impulse[1] == pytest.approx(0.0)
 
 
 def test_min_factor_one_gives_full_force_always():
     c = JumpController(MAX_T, F, min_factor=1.0)
     c.press(on_ground=True)
     event = c.release(on_ground=True)
-    assert event.force[1] == pytest.approx(-F)
+    assert event.impulse[1] == pytest.approx(-F)

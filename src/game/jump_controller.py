@@ -1,7 +1,8 @@
 """Контроллер прыжка с явной state-машиной.
 
 Не зависит от pygame и pymunk — принимает on_ground как параметр.
-Тесты должны покрывать все переходы и формулу силы.
+JumpEvent.impulse — вектор импульса для apply_impulse_at_world_point,
+поэтому поведение прыжка не зависит от частоты кадров.
 """
 from dataclasses import dataclass
 from enum import Enum
@@ -15,8 +16,11 @@ class JumpState(Enum):
 
 @dataclass(frozen=True)
 class JumpEvent:
-    """Возвращается контроллером, когда нужно применить силу прыжка к мячу."""
-    force: Tuple[float, float]
+    """Возвращается контроллером при срабатывании прыжка.
+
+    impulse — вектор (Δp_x, Δp_y), пригодный для apply_impulse_at_world_point.
+    """
+    impulse: Tuple[float, float]
 
 
 class JumpController:
@@ -25,25 +29,25 @@ class JumpController:
     Состояния: IDLE ↔ CHARGING.
     Внешние события: press(), release(), update(dt). Все принимают on_ground.
 
-    Сила прыжка: JUMP_FORCE * (min_factor + (1 - min_factor) * charge_ratio),
+    Импульс прыжка: jump_impulse * (min_factor + (1 - min_factor) * charge_ratio),
     где charge_ratio = min(charge_time / max_charge_time, 1.0).
     """
 
     def __init__(
         self,
         max_charge_time: float,
-        jump_force: float,
+        jump_impulse: float,
         min_factor: float = 0.3,
     ):
         if max_charge_time <= 0:
             raise ValueError("max_charge_time must be positive")
-        if jump_force <= 0:
-            raise ValueError("jump_force must be positive")
+        if jump_impulse <= 0:
+            raise ValueError("jump_impulse must be positive")
         if not 0.0 <= min_factor <= 1.0:
             raise ValueError("min_factor must be in [0, 1]")
 
         self.max_charge_time = max_charge_time
-        self.jump_force = jump_force
+        self.jump_impulse = jump_impulse
         self.min_factor = min_factor
 
         self._state = JumpState.IDLE
@@ -89,7 +93,7 @@ class JumpController:
         event: Optional[JumpEvent] = None
         if self._state == JumpState.CHARGING:
             if on_ground:
-                event = JumpEvent(force=(0.0, -self._compute_force()))
+                event = JumpEvent(impulse=(0.0, -self._compute_impulse()))
             self._reset()
         return event
 
@@ -118,6 +122,6 @@ class JumpController:
         self._state = JumpState.IDLE
         self._charge_time = 0.0
 
-    def _compute_force(self) -> float:
+    def _compute_impulse(self) -> float:
         factor = self.min_factor + (1.0 - self.min_factor) * self.charge_ratio
-        return self.jump_force * factor
+        return self.jump_impulse * factor

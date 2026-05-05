@@ -95,3 +95,91 @@ def test_apply_force_direction(space, force, axis, direction):
 def test_moment_of_inertia_is_positive(space):
     ball = Ball(0, 0, space=space)
     assert ball.body.moment > 0
+
+
+# ---------------------------------------------------------------------------
+# apply_impulse — мгновенное изменение скорости, не зависит от dt
+# ---------------------------------------------------------------------------
+
+
+def test_apply_impulse_changes_velocity_immediately(space):
+    """Импульс меняет velocity сразу, без вызова space.step."""
+    space.gravity = (0, 0)
+    ball = Ball(100, 100, space=space)
+    assert ball.body.velocity == pymunk.Vec2d(0, 0)
+
+    ball.apply_impulse((0, -100))
+
+    assert ball.body.velocity.y == pytest.approx(-100 / ball.mass)
+    assert ball.body.velocity.x == 0
+
+
+def test_apply_impulse_velocity_change_is_unaffected_by_dt(space):
+    """Δv от импульса — мгновенная и не масштабируется dt последующих шагов.
+
+    Используем vanilla update_velocity, чтобы AIR_RESISTANCE из custom_velocity_func
+    не влиял на чистоту проверки.
+    """
+    space.gravity = (0, 0)
+    ball = Ball(100, 100, space=space)
+    ball.body.velocity_func = pymunk.Body.update_velocity
+
+    ball.apply_impulse((0, -100))
+    v_after_impulse = ball.body.velocity.y
+
+    for _ in range(10):
+        space.step(1 / 60.0)
+
+    assert ball.body.velocity.y == pytest.approx(v_after_impulse)
+
+
+@pytest.mark.parametrize(
+    "impulse,axis,direction",
+    [
+        ((100, 0), "x", 1),
+        ((-100, 0), "x", -1),
+        ((0, 100), "y", 1),
+        ((0, -100), "y", -1),
+    ],
+)
+def test_apply_impulse_direction(space, impulse, axis, direction):
+    space.gravity = (0, 0)
+    ball = Ball(100, 100, space=space)
+
+    ball.apply_impulse(impulse)
+
+    velocity_component = getattr(ball.body.velocity, axis)
+    assert velocity_component * direction > 0
+
+
+# ---------------------------------------------------------------------------
+# draw с переопределением позиции (для интерполяции)
+# ---------------------------------------------------------------------------
+
+
+def test_draw_uses_body_position_by_default(space):
+    """Если position=None — используется текущая позиция body."""
+    pygame_module = pytest.importorskip("pygame")
+    pygame_module.init()
+    surface = pygame_module.Surface((200, 200))
+    ball = Ball(100, 100, space=space)
+    # просто не должно падать
+    ball.draw(surface)
+
+
+def test_draw_accepts_override_position(space):
+    """Можно нарисовать мяч в произвольной позиции для интерполяции."""
+    pygame_module = pytest.importorskip("pygame")
+    pygame_module.init()
+    surface = pygame_module.Surface((200, 200))
+    ball = Ball(100, 100, space=space)
+    ball.draw(surface, position=(50.5, 75.5))
+
+
+def test_draw_accepts_vec2d_position(space):
+    """Vec2d должен работать как position."""
+    pygame_module = pytest.importorskip("pygame")
+    pygame_module.init()
+    surface = pygame_module.Surface((200, 200))
+    ball = Ball(100, 100, space=space)
+    ball.draw(surface, position=pymunk.Vec2d(60, 80))
