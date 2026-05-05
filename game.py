@@ -12,6 +12,7 @@ import pymunk.pygame_util
 from src.entities.ball import Ball
 from src.game.input_handler import InputAction, InputHandler
 from src.game.jump_controller import JumpController
+from src.game.movement import apply_movement_force
 from src.utils.config import (
     DAMPING,
     FIXED_DT,
@@ -80,13 +81,15 @@ def main():
         # --- физика: фиксированный шаг -------------------------------------
         while accumulator >= FIXED_DT:
             prev_ball_pos = pymunk.Vec2d(*ball.body.position)
+            on_ground_step = is_on_ground(ball, space)
 
-            dx, dy = input_handler.get_movement()
-            if dx or dy:
-                ball.apply_force((dx * MOVE_FORCE, dy * MOVE_FORCE))
-            jump_controller.update(
-                FIXED_DT, on_ground=is_on_ground(ball, space)
+            apply_movement_force(
+                ball,
+                input_handler.get_movement(),
+                on_ground_step,
+                MOVE_FORCE,
             )
+            jump_controller.update(FIXED_DT, on_ground=on_ground_step)
 
             space.step(FIXED_DT)
             accumulator -= FIXED_DT
