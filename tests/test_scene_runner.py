@@ -14,6 +14,7 @@ class _RecordingScene(Scene):
         self.events_seen = []
         self.fixed_calls = 0
         self.renders = 0
+        self.last_alpha = None
         self._transition_to = transition_to
         self._quit_after = quit_after_renders
 
@@ -25,8 +26,9 @@ class _RecordingScene(Scene):
         if self._transition_to is not None:
             self.next_scene = self._transition_to
 
-    def render(self, screen):
+    def render(self, screen, alpha=1.0):
         self.renders += 1
+        self.last_alpha = alpha
         if self._quit_after is not None and self.renders >= self._quit_after:
             pygame.event.post(pygame.event.Event(pygame.QUIT))
 
@@ -47,6 +49,13 @@ def test_run_scenes_transitions_to_next_scene():
     # после чего раннер переключился на вторую и она закрыла окно.
     assert first.fixed_calls >= 1
     assert second.renders >= 1
+
+
+def test_run_scenes_passes_alpha_in_unit_range():
+    scene = _RecordingScene(quit_after_renders=1)
+    run_scenes(scene)
+    assert scene.last_alpha is not None
+    assert 0 <= scene.last_alpha < 1.0
 
 
 def test_run_scenes_renders_first_scene_before_transition():

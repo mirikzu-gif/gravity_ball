@@ -53,6 +53,35 @@ def test_render_does_not_crash():
     scene.render(screen)
 
 
+def test_render_accepts_alpha_for_interpolation():
+    scene = GameScene()
+    screen = pygame.Surface((1000, 700))
+    scene.render(screen, alpha=0.0)
+    scene.render(screen, alpha=0.5)
+    scene.render(screen, alpha=0.99)
+
+
+def test_prev_ball_pos_initialized_to_start():
+    scene = GameScene()
+    assert scene._prev_ball_pos.x == scene._ball.body.position.x
+    assert scene._prev_ball_pos.y == scene._ball.body.position.y
+
+
+def test_prev_ball_pos_updated_before_step():
+    """После fixed_update prev_ball_pos должна равняться позиции ДО шага."""
+    scene = GameScene()
+    # сделаем мяч заметно подвижным
+    scene._ball.body.position = (200, 580)
+    scene._ball.body.velocity = (0, 0)
+
+    pos_before = (scene._ball.body.position.x, scene._ball.body.position.y)
+    scene.fixed_update(FIXED_DT)
+
+    # prev записывается в начале fixed_update — равна позиции до шага
+    assert scene._prev_ball_pos.x == pos_before[0]
+    assert scene._prev_ball_pos.y == pos_before[1]
+
+
 def test_handle_quit_posts_pygame_quit():
     scene = GameScene()
     scene.handle_event(_ev(pygame.QUIT))

@@ -49,7 +49,7 @@ def run_scenes(initial_scene: Scene, caption: str = "Упругий мяч") -> 
             current = current.next_scene
             accumulator = 0.0
 
-        current.render(screen)
+        current.render(screen, alpha=accumulator / FIXED_DT)
         pygame.display.flip()
 
     pygame.quit()

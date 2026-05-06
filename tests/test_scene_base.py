@@ -26,6 +26,14 @@ def test_scene_default_render_is_noop():
     scene.render(surface)
 
 
+def test_scene_default_render_accepts_alpha():
+    scene = Scene()
+    surface = pygame.Surface((10, 10))
+    scene.render(surface, alpha=0.0)
+    scene.render(surface, alpha=0.5)
+    scene.render(surface, alpha=0.99)
+
+
 def test_scene_can_set_next_scene():
     scene = Scene()
     other = Scene()

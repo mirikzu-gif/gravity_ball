@@ -30,7 +30,7 @@ class WinScene(Scene):
         elif event.key in (pygame.K_ESCAPE, pygame.K_q):
             pygame.event.post(pygame.event.Event(pygame.QUIT))
 
-    def render(self, screen: pygame.Surface) -> None:
+    def render(self, screen: pygame.Surface, alpha: float = 1.0) -> None:
         screen.fill(WHITE)
         title_rect = self._title.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 30))
         hint_rect = self._hint.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 30))

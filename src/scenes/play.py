@@ -55,6 +55,9 @@ class GameScene(Scene):
         self._input = InputHandler()
         self._jump = JumpController(MAX_CHARGE_TIME, JUMP_IMPULSE)
 
+        # Для интерполяции рендера: позиция в начале последнего физ. шага.
+        self._prev_ball_pos = pymunk.Vec2d(*self._ball.body.position)
+
         self._info_font = pygame.font.Font(None, 36)
         self._info_text = self._info_font.render(
             "Стрелки — движение, пробел — прыжок (зажми, чтобы зарядить)",
@@ -83,6 +86,9 @@ class GameScene(Scene):
                 self._ball.apply_impulse(jump_event.impulse)
 
     def fixed_update(self, dt: float) -> None:
+        # фиксируем позицию ДО шага — для интерполяции в render
+        self._prev_ball_pos = pymunk.Vec2d(*self._ball.body.position)
+
         on_ground = is_on_ground(self._ball, self._space)
 
         apply_movement_force(
@@ -98,7 +104,13 @@ class GameScene(Scene):
         if self._goal.is_touched_by(self._ball):
             self._on_goal_reached()
 
-    def render(self, screen: pygame.Surface) -> None:
+    def render(self, screen: pygame.Surface, alpha: float = 1.0) -> None:
+        # Интерполяция позиции мяча между последним и текущим физическим шагом.
+        curr_pos = self._ball.body.position
+        ball_render_pos = (
+            self._prev_ball_pos * (1.0 - alpha) + curr_pos * alpha
+        )
+
         screen.fill(WHITE)
 
         for platform in self._platforms:
@@ -106,13 +118,12 @@ class GameScene(Scene):
         for obstacle in self._obstacles:
             obstacle.draw(screen)
         self._goal.draw(screen)
-        self._ball.draw(screen)
+        self._ball.draw(screen, position=ball_render_pos)
 
         if self._jump.is_charging and is_on_ground(self._ball, self._space):
-            self._draw_charge_bar(screen)
+            self._draw_charge_bar(screen, ball_render_pos)
 
         screen.blit(self._info_text, (10, 10))
-        # номер уровня — в правом верхнем углу
         rect = self._level_label.get_rect(topright=(WIDTH - 10, 10))
         screen.blit(self._level_label, rect)
 
@@ -128,11 +139,11 @@ class GameScene(Scene):
         else:
             self.next_scene = GameScene(next_index)
 
-    def _draw_charge_bar(self, screen: pygame.Surface) -> None:
+    def _draw_charge_bar(self, screen: pygame.Surface, position) -> None:
         bar_width = 60
         bar_height = 8
-        bar_x = int(self._ball.body.position.x - bar_width // 2)
-        bar_y = int(self._ball.body.position.y + self._ball.radius + 10)
+        bar_x = int(position[0] - bar_width // 2)
+        bar_y = int(position[1] + self._ball.radius + 10)
         ratio = self._jump.charge_ratio
 
         pygame.draw.rect(screen, GRAY, (bar_x, bar_y, bar_width, bar_height))

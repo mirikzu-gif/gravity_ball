@@ -26,5 +26,11 @@ class Scene:
     def fixed_update(self, dt: float) -> None:
         """Шаг физики/логики с фиксированным dt. Может вызываться 0..N раз за кадр."""
 
-    def render(self, screen: pygame.Surface) -> None:
-        """Отрисовка кадра."""
+    def render(self, screen: pygame.Surface, alpha: float = 1.0) -> None:
+        """Отрисовка кадра.
+
+        alpha ∈ [0, 1) — доля accumulator относительно FIXED_DT. Используется
+        для интерполяции между последним и текущим физическим состоянием:
+        render_pos = prev * (1 - alpha) + curr * alpha. Сцены без анимации
+        могут просто игнорировать параметр.
+        """
