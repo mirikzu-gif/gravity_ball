@@ -1,4 +1,5 @@
 """Юнит-тесты Ball: инициализация, регистрация в Space и apply_force."""
+import pygame
 import pymunk
 import pytest
 
@@ -154,6 +155,38 @@ def test_draw_uses_body_position_by_default(space):
     ball = Ball(100, 100, space=space)
     # просто не должно падать
     ball.draw(surface)
+
+
+def test_draw_falls_back_to_circle_when_no_sprite(monkeypatch, space, tmp_path):
+    """Если ассет ball.png отсутствует — используется процедурный круг (drawing call)."""
+    from src.utils import assets
+
+    monkeypatch.setattr(assets, "ASSETS_DIR", tmp_path)
+    assets.reset_cache()
+
+    surface = pygame.Surface((200, 200))
+    ball = Ball(100, 100, space=space)
+    ball.draw(surface)  # не должно падать без спрайта
+
+
+def test_draw_uses_sprite_when_available(monkeypatch, space, tmp_path):
+    from src.utils import assets
+
+    monkeypatch.setattr(assets, "ASSETS_DIR", tmp_path)
+    assets.reset_cache()
+
+    sprite_surf = pygame.Surface((40, 40), pygame.SRCALPHA)
+    sprite_surf.fill((123, 45, 67))
+    pygame.image.save(sprite_surf, str(tmp_path / "ball.png"))
+
+    target = pygame.Surface((200, 200))
+    target.fill((0, 0, 0))
+    ball = Ball(100, 100, space=space)
+    ball.draw(target)
+
+    # центр мяча должен иметь цвет из спрайта (не чёрный фон)
+    px = target.get_at((100, 100))
+    assert (px[0], px[1], px[2]) == (123, 45, 67)
 
 
 def test_draw_accepts_override_position(space):

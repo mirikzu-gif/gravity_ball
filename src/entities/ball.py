@@ -3,7 +3,9 @@
 """
 import pygame
 import pymunk
-from ..utils.config import MATERIALS, RED, BLACK
+
+from ..utils import assets
+from ..utils.config import BLACK, MATERIALS, RED
 
 
 class Ball:
@@ -25,7 +27,7 @@ class Ball:
 
         if space:
             space.add(self.body, self.shape)
-        
+
     def apply_force(self, force):
         """Применяет силу к мячу (действует один шаг space.step)."""
         self.body.apply_force_at_world_point(force, self.body.position)
@@ -35,9 +37,18 @@ class Ball:
         self.body.apply_impulse_at_world_point(impulse, self.body.position)
 
     def draw(self, screen, position=None):
-        """Рисует мяч. position позволяет передать интерполированную позицию для рендера."""
+        """Рисует мяч. position позволяет передать интерполированную позицию для рендера.
+
+        Если в assets/ball.png есть спрайт подходящего размера — используется он;
+        иначе fallback на простой круг.
+        """
         if position is None:
             position = self.body.position
+        sprite = assets.get_image("ball.png")
+        if sprite is not None:
+            rect = sprite.get_rect(center=(int(position[0]), int(position[1])))
+            screen.blit(sprite, rect)
+            return
         pos = int(position[0]), int(position[1])
         pygame.draw.circle(screen, RED, pos, self.radius)
         pygame.draw.circle(screen, BLACK, pos, self.radius, 2)

@@ -6,7 +6,7 @@ from ..entities.ball import Ball
 from ..game.input_handler import InputAction, InputHandler
 from ..game.jump_controller import JumpController
 from ..game.movement import apply_movement_force
-from ..utils import audio, best_times
+from ..utils import assets, audio, best_times
 from .clouds import generate_clouds
 from ..utils.config import (
     DAMPING,
@@ -49,7 +49,17 @@ def _on_collision_post_solve(arbiter, space, data):
 
 
 def _build_background():
-    """Один раз отрисованный вертикальный градиент: небо вверху → светлый низ."""
+    """Возвращает Surface для фона.
+
+    Если есть assets/background.png — масштабируется к размеру окна и используется;
+    иначе fallback на простой вертикальный градиент.
+    """
+    sprite = assets.get_image("background.png")
+    if sprite is not None:
+        if sprite.get_size() == (WIDTH, HEIGHT):
+            return sprite
+        return pygame.transform.smoothscale(sprite, (WIDTH, HEIGHT))
+
     surface = pygame.Surface((WIDTH, HEIGHT))
     top = (200, 222, 245)
     bottom = (245, 245, 250)
