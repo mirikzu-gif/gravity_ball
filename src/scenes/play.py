@@ -74,6 +74,16 @@ class GameScene(Scene):
     # Scene API
     # ------------------------------------------------------------------
     def handle_event(self, event: pygame.event.Event) -> None:
+        # Пауза перехватывается до InputHandler, чтобы P/Esc не уходили в JumpController.
+        if event.type == pygame.KEYDOWN and event.key in (
+            pygame.K_p,
+            pygame.K_ESCAPE,
+        ):
+            from .pause import PauseScene
+
+            self.next_scene = PauseScene(self)
+            return
+
         on_ground = is_on_ground(self._ball, self._space)
         action = self._input.process_event(event)
         if action is InputAction.QUIT:

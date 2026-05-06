@@ -47,6 +47,10 @@ def run_scenes(initial_scene: Scene, caption: str = "Упругий мяч") -> 
 
         if current.next_scene is not None:
             current = current.next_scene
+            # Сбрасываем next_scene на новой сцене — иначе при повторном использовании
+            # того же экземпляра (например, GameScene → PauseScene → та же GameScene)
+            # старое значение мгновенно вернёт нас обратно.
+            current.next_scene = None
             accumulator = 0.0
 
         current.render(screen, alpha=accumulator / FIXED_DT)

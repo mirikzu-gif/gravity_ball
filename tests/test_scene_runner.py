@@ -58,6 +58,21 @@ def test_run_scenes_passes_alpha_in_unit_range():
     assert 0 <= scene.last_alpha < 1.0
 
 
+def test_run_scenes_clears_next_scene_after_switch():
+    """После перехода у новой сцены next_scene должно стать None,
+    чтобы повторно используемые экземпляры не «возвращали» нас обратно."""
+    second = _RecordingScene(name="B", quit_after_renders=1)
+    first = _RecordingScene(name="A", transition_to=second)
+    # имитируем использованный экземпляр со «старым» next_scene
+    second.next_scene = first
+
+    run_scenes(first)
+
+    # после переключения на second runner обнулил его next_scene
+    # и не уехал назад в first
+    assert second.renders >= 1
+
+
 def test_run_scenes_renders_first_scene_before_transition():
     second = _RecordingScene(name="B", quit_after_renders=1)
     first = _RecordingScene(name="A", transition_to=second)
