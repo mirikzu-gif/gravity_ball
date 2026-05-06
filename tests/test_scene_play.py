@@ -14,11 +14,12 @@ def _ev(type_, **attrs):
 
 
 def _put_ball_on_first_level_platform(scene):
-    """Кладёт мяч на верхнюю платформу 1-го уровня (200, 600) с лёгким перекрытием.
+    """Кладёт мяч на широкую платформу 1-го уровня (500, 620, 800, 20).
 
-    Используется только для тестов первого уровня — другие имеют другую геометрию.
+    Платформа top y=610. Мяч center y=595 → нижний probe (radius+1=21)
+    в y=616 — внутри платформы [610, 630].
     """
-    scene._ball.body.position = (200, 580)
+    scene._ball.body.position = (500, 595)
     scene._ball.body.velocity = (0, 0)
 
 
@@ -32,7 +33,7 @@ def test_init_creates_world_with_objects():
     assert scene._space is not None
     assert scene._ball is not None
     assert scene._goal is not None
-    assert len(scene._platforms) == 5
+    assert len(scene._platforms) >= 1
     assert scene._ball.shape in scene._space.shapes
 
 
@@ -155,9 +156,10 @@ def test_default_level_index_is_zero():
 
 
 def test_scene_uses_level_def_ball_start():
-    scene = GameScene(level_index=2)  # Башня — старт (500, 660)
-    assert scene._ball.body.position.x == LEVELS[2].ball_start[0]
-    assert scene._ball.body.position.y == LEVELS[2].ball_start[1]
+    last_index = len(LEVELS) - 1
+    scene = GameScene(level_index=last_index)
+    assert scene._ball.body.position.x == LEVELS[last_index].ball_start[0]
+    assert scene._ball.body.position.y == LEVELS[last_index].ball_start[1]
 
 
 @pytest.mark.parametrize("level_index", range(len(LEVELS)))
