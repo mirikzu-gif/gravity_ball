@@ -6,15 +6,16 @@ from ..entities.ball import Ball
 from ..game.input_handler import InputAction, InputHandler
 from ..game.jump_controller import JumpController
 from ..game.movement import apply_movement_force
+from ..utils import audio
 from ..utils.config import (
     DAMPING,
     FIXED_DT,
     GRAVITY,
     GRAY,
+    HEIGHT,
     JUMP_FORCE,
     MAX_CHARGE_TIME,
     MOVE_FORCE,
-    WHITE,
     WIDTH,
 )
 from ..utils.level import LEVELS, build_level
@@ -27,10 +28,31 @@ from .base import Scene
 JUMP_IMPULSE = JUMP_FORCE * FIXED_DT
 
 
+def _format_time(secs: float) -> str:
+    minutes, seconds = divmod(secs, 60)
+    return f"{int(minutes):02d}:{seconds:05.2f}"
+
+
+def _build_background():
+    """Один раз отрисованный вертикальный градиент: небо вверху → светлый низ."""
+    surface = pygame.Surface((WIDTH, HEIGHT))
+    top = (200, 222, 245)
+    bottom = (245, 245, 250)
+    for y in range(HEIGHT):
+        t = y / HEIGHT
+        r = int(top[0] + (bottom[0] - top[0]) * t)
+        g = int(top[1] + (bottom[1] - top[1]) * t)
+        b = int(top[2] + (bottom[2] - top[2]) * t)
+        pygame.draw.line(surface, (r, g, b), (0, y), (WIDTH, y))
+    return surface
+
+
 class GameScene(Scene):
     """Игровая сцена: физика, ввод, цель уровня."""
 
-    def __init__(self, level_index: int = 0) -> None:
+    def __init__(
+        self, level_index: int = 0, total_elapsed: float = 0.0
+    ) -> None:
         super().__init__()
         if not 0 <= level_index < len(LEVELS):
             raise ValueError(
@@ -38,6 +60,9 @@ class GameScene(Scene):
             )
         self.level_index = level_index
         self.level_def = LEVELS[level_index]
+        # Время с прошлых уровней + текущее на этом уровне.
+        self._total_elapsed_before = total_elapsed
+        self._elapsed = 0.0
 
         self._space = pymunk.Space()
         self._space.gravity = GRAVITY
@@ -58,9 +83,10 @@ class GameScene(Scene):
         # Для интерполяции рендера: позиция в начале последнего физ. шага.
         self._prev_ball_pos = pymunk.Vec2d(*self._ball.body.position)
 
+        self._background = _build_background()
         self._info_font = pygame.font.Font(None, 36)
         self._info_text = self._info_font.render(
-            "Стрелки — движение, пробел — прыжок (зажми, чтобы зарядить)",
+            "Стрелки/пробел — играть    R — рестарт    P — пауза",
             True,
             (0, 0, 0),
         )
@@ -84,6 +110,14 @@ class GameScene(Scene):
             self.next_scene = PauseScene(self)
             return
 
+        # R — рестарт текущего уровня. Время прошлых уровней сохраняется,
+        # таймер текущего уровня обнуляется.
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
+            self.next_scene = GameScene(
+                self.level_index, total_elapsed=self._total_elapsed_before
+            )
+            return
+
         on_ground = is_on_ground(self._ball, self._space)
         action = self._input.process_event(event)
         if action is InputAction.QUIT:
@@ -94,10 +128,12 @@ class GameScene(Scene):
             jump_event = self._jump.release(on_ground=on_ground)
             if jump_event is not None:
                 self._ball.apply_impulse(jump_event.impulse)
+                audio.play_jump()
 
     def fixed_update(self, dt: float) -> None:
         # фиксируем позицию ДО шага — для интерполяции в render
         self._prev_ball_pos = pymunk.Vec2d(*self._ball.body.position)
+        self._elapsed += dt
 
         on_ground = is_on_ground(self._ball, self._space)
 
@@ -121,7 +157,7 @@ class GameScene(Scene):
             self._prev_ball_pos * (1.0 - alpha) + curr_pos * alpha
         )
 
-        screen.fill(WHITE)
+        screen.blit(self._background, (0, 0))
 
         for platform in self._platforms:
             platform.draw(screen)
@@ -137,17 +173,27 @@ class GameScene(Scene):
         rect = self._level_label.get_rect(topright=(WIDTH - 10, 10))
         screen.blit(self._level_label, rect)
 
+        timer_surf = self._info_font.render(
+            _format_time(self._total_elapsed_before + self._elapsed),
+            True,
+            (0, 0, 0),
+        )
+        timer_rect = timer_surf.get_rect(topright=(WIDTH - 10, 50))
+        screen.blit(timer_surf, timer_rect)
+
     # ------------------------------------------------------------------
     # Внутреннее
     # ------------------------------------------------------------------
     def _on_goal_reached(self) -> None:
+        audio.play_goal()
+        total = self._total_elapsed_before + self._elapsed
         next_index = self.level_index + 1
         if next_index >= len(LEVELS):
             from .win import WinScene
 
-            self.next_scene = WinScene()
+            self.next_scene = WinScene(total_time=total)
         else:
-            self.next_scene = GameScene(next_index)
+            self.next_scene = GameScene(next_index, total_elapsed=total)
 
     def _draw_charge_bar(self, screen: pygame.Surface, position) -> None:
         bar_width = 60

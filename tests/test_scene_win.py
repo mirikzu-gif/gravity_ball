@@ -32,3 +32,16 @@ def test_render_does_not_crash():
     scene = WinScene()
     screen = pygame.Surface((1000, 700))
     scene.render(screen)
+
+
+def test_default_total_time_is_zero():
+    scene = WinScene()
+    assert scene.total_time == 0.0
+
+
+def test_total_time_stored_and_rendered():
+    scene = WinScene(total_time=125.5)
+    assert scene.total_time == 125.5
+    # render не должен падать
+    screen = pygame.Surface((1000, 700))
+    scene.render(screen)

@@ -73,6 +73,31 @@ def test_run_scenes_clears_next_scene_after_switch():
     assert second.renders >= 1
 
 
+def test_run_scenes_handles_f11_without_crashing(monkeypatch):
+    """F11 перехватывается раннером и не должен валить процесс."""
+    f11_event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_F11)
+    quit_event = pygame.event.Event(pygame.QUIT)
+
+    state = {"step": 0}
+
+    def fake_get():
+        state["step"] += 1
+        if state["step"] == 1:
+            return [f11_event]
+        return [quit_event]
+
+    monkeypatch.setattr(pygame.event, "get", fake_get)
+
+    scene = _RecordingScene()
+    run_scenes(scene)
+
+    # F11 НЕ должен дойти до scene.handle_event
+    assert all(
+        not (e.type == pygame.KEYDOWN and e.key == pygame.K_F11)
+        for e in scene.events_seen
+    )
+
+
 def test_run_scenes_renders_first_scene_before_transition():
     second = _RecordingScene(name="B", quit_after_renders=1)
     first = _RecordingScene(name="A", transition_to=second)

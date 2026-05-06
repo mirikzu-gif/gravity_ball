@@ -1,4 +1,6 @@
 """Цель уровня — sensor-блок, в который надо привести мяч."""
+import math
+
 import pygame
 import pymunk
 
@@ -56,5 +58,11 @@ class Goal:
         )
         pygame.draw.rect(screen, YELLOW, rect)
         pygame.draw.rect(screen, BLACK, rect, 3)
-        # «флажок» — поставить точку в центре, чтобы цель отличалась от платформ
         pygame.draw.circle(screen, BLACK, pos, 4)
+
+        # Пульсирующий ореол, чтобы цель сразу бросалась в глаза.
+        t = pygame.time.get_ticks() / 1000.0
+        pulse = 0.5 + 0.5 * math.sin(t * 3.5)  # 0..1, период ~1.8 сек
+        glow_radius = int(max(self.width, self.height) // 2 + 8 + pulse * 12)
+        glow_thickness = 2 + int(pulse * 2)
+        pygame.draw.circle(screen, YELLOW, pos, glow_radius, glow_thickness)

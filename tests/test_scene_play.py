@@ -155,6 +155,84 @@ def test_default_level_index_is_zero():
     assert scene.level_index == 0
 
 
+def test_r_restarts_current_level():
+    scene = GameScene(level_index=1)
+    scene.handle_event(_ev(pygame.KEYDOWN, key=pygame.K_r))
+    assert isinstance(scene.next_scene, GameScene)
+    assert scene.next_scene.level_index == 1
+    assert scene.next_scene is not scene
+
+
+def test_r_does_not_pass_to_input_handler():
+    """R не должен затрагивать движение/прыжок."""
+    from src.game.jump_controller import JumpState
+
+    scene = GameScene()
+    scene.handle_event(_ev(pygame.KEYDOWN, key=pygame.K_r))
+    assert scene._jump.state == JumpState.IDLE
+
+
+# ---------------------------------------------------------------------------
+# Таймер
+# ---------------------------------------------------------------------------
+
+
+def test_timer_starts_at_zero():
+    scene = GameScene()
+    assert scene._elapsed == 0.0
+    assert scene._total_elapsed_before == 0.0
+
+
+def test_timer_accumulates_in_fixed_update():
+    scene = GameScene()
+    scene.fixed_update(FIXED_DT)
+    scene.fixed_update(FIXED_DT)
+    assert scene._elapsed == pytest.approx(2 * FIXED_DT)
+
+
+def test_total_elapsed_carries_to_next_level():
+    """Завершение уровня → следующий GameScene получает накопленное время."""
+    scene = GameScene(level_index=0)
+    # пусть прошла секунда
+    for _ in range(60):
+        scene.fixed_update(FIXED_DT)
+    elapsed_before_goal = scene._elapsed
+
+    # перенесём мяч в цель и запустим шаг
+    goal = scene.level_def.goal
+    scene._ball.body.position = (goal.x, goal.y)
+    scene.fixed_update(FIXED_DT)
+
+    assert isinstance(scene.next_scene, GameScene)
+    assert scene.next_scene._total_elapsed_before == pytest.approx(
+        elapsed_before_goal + FIXED_DT
+    )
+
+
+def test_total_elapsed_carries_to_win_scene():
+    last_index = len(LEVELS) - 1
+    scene = GameScene(level_index=last_index, total_elapsed=5.0)
+    goal = scene.level_def.goal
+    scene._ball.body.position = (goal.x, goal.y)
+    scene.fixed_update(FIXED_DT)
+
+    assert isinstance(scene.next_scene, WinScene)
+    assert scene.next_scene.total_time == pytest.approx(5.0 + FIXED_DT)
+
+
+def test_r_resets_level_timer_but_keeps_total():
+    scene = GameScene(level_index=0, total_elapsed=10.0)
+    for _ in range(60):
+        scene.fixed_update(FIXED_DT)
+
+    scene.handle_event(_ev(pygame.KEYDOWN, key=pygame.K_r))
+
+    new_scene = scene.next_scene
+    assert isinstance(new_scene, GameScene)
+    assert new_scene._elapsed == 0.0
+    assert new_scene._total_elapsed_before == 10.0  # время прошлых уровней цело
+
+
 def test_scene_uses_level_def_ball_start():
     last_index = len(LEVELS) - 1
     scene = GameScene(level_index=last_index)

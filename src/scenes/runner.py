@@ -21,6 +21,7 @@ def run_scenes(initial_scene: Scene, caption: str = "Упругий мяч") -> 
 
     current = initial_scene
     accumulator = 0.0
+    fullscreen = False
 
     running = True
     while running:
@@ -31,6 +32,12 @@ def run_scenes(initial_scene: Scene, caption: str = "Упругий мяч") -> 
             if event.type == pygame.QUIT:
                 running = False
                 break
+            # F11 переключает полноэкранный режим — перехватывается до сцен.
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_F11:
+                fullscreen = not fullscreen
+                flags = pygame.FULLSCREEN if fullscreen else 0
+                screen = pygame.display.set_mode((WIDTH, HEIGHT), flags)
+                continue
             current.handle_event(event)
             if current.next_scene is not None:
                 break
