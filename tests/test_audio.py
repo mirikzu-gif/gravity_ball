@@ -18,6 +18,11 @@ def test_play_goal_does_not_raise():
     audio.play_goal()
 
 
+def test_play_bounce_does_not_raise():
+    audio.reset_cache()
+    audio.play_bounce()
+
+
 def test_repeated_play_uses_cache():
     """Повторный вызов не пересоздаёт Sound."""
     audio.reset_cache()

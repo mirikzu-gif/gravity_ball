@@ -91,6 +91,16 @@ def play_jump() -> None:
     snd.play()
 
 
+def play_bounce() -> None:
+    if not _get_or_init_mixer():
+        return
+    snd = _cache.get("bounce")
+    if snd is None:
+        snd = _make_sweep(180, 60, 0.08, volume=0.22)
+        _cache["bounce"] = snd
+    snd.play()
+
+
 def play_goal() -> None:
     if not _get_or_init_mixer():
         return
