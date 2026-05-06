@@ -7,6 +7,7 @@ from ..game.input_handler import InputAction, InputHandler
 from ..game.jump_controller import JumpController
 from ..game.movement import apply_movement_force
 from ..utils import audio, best_times
+from .clouds import generate_clouds
 from ..utils.config import (
     DAMPING,
     FIXED_DT,
@@ -31,6 +32,20 @@ JUMP_IMPULSE = JUMP_FORCE * FIXED_DT
 def _format_time(secs: float) -> str:
     minutes, seconds = divmod(secs, 60)
     return f"{int(minutes):02d}:{seconds:05.2f}"
+
+
+_BOUNCE_IMPULSE_THRESHOLD = 250.0
+
+
+def _on_collision_post_solve(arbiter, space, data):
+    """Pymunk-callback: проигрывает звук при сильном ударе.
+
+    arbiter.total_impulse — суммарный импульс контакта за этот шаг.
+    Лежание мяча на платформе тоже даёт импульс (из-за гравитации), но
+    значительно ниже; порог отсекает такие фоновые контакты.
+    """
+    if arbiter.total_impulse.length > _BOUNCE_IMPULSE_THRESHOLD:
+        audio.play_bounce()
 
 
 def _build_background():
@@ -67,6 +82,9 @@ class GameScene(Scene):
         self._space = pymunk.Space()
         self._space.gravity = GRAVITY
         self._space.damping = DAMPING
+        # Звук отскока: pymunk вызовет post_solve с суммарным импульсом контакта,
+        # порог отсекает «лежание» мяча на полу и слабые касания.
+        self._space.on_collision(post_solve=_on_collision_post_solve)
 
         self._ball = Ball(
             self.level_def.ball_start[0],
@@ -84,6 +102,7 @@ class GameScene(Scene):
         self._prev_ball_pos = pymunk.Vec2d(*self._ball.body.position)
 
         self._background = _build_background()
+        self._clouds = generate_clouds()
         self._info_font = pygame.font.Font(None, 36)
         self._info_text = self._info_font.render(
             "Стрелки/пробел — играть    R — рестарт    P — пауза",
@@ -135,6 +154,9 @@ class GameScene(Scene):
         self._prev_ball_pos = pymunk.Vec2d(*self._ball.body.position)
         self._elapsed += dt
 
+        for cloud in self._clouds:
+            cloud.update(dt)
+
         on_ground = is_on_ground(self._ball, self._space)
 
         apply_movement_force(
@@ -158,6 +180,10 @@ class GameScene(Scene):
         )
 
         screen.blit(self._background, (0, 0))
+
+        # Облака рисуются между фоном и игровым миром.
+        for cloud in self._clouds:
+            cloud.draw(screen, (255, 255, 255))
 
         for platform in self._platforms:
             platform.draw(screen)
