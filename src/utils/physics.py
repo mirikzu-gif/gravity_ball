@@ -3,7 +3,6 @@
 """
 import math
 import pymunk
-from .config import AIR_RESISTANCE
 
 
 # Конус «низа» мяча — 60°...120° от оси X (т.е. ±30° от строго вниз).
@@ -29,12 +28,3 @@ def is_on_ground(ball, space):
             if query.shape != ball.shape:
                 return True
     return False
-
-
-def custom_velocity_func(body, gravity, damping, dt):
-    """Кастомная функция скорости для реалистичной физики"""
-    # Применяем гравитацию
-    pymunk.Body.update_velocity(body, gravity, damping, dt)
-    
-    # Добавляем небольшое сопротивление воздуха
-    body.velocity = body.velocity * AIR_RESISTANCE

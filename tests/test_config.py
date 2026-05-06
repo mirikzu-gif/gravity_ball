@@ -46,7 +46,6 @@ def test_gravity_pulls_down():
 
 def test_damping_in_unit_range():
     assert 0 < config.DAMPING <= 1
-    assert 0 < config.AIR_RESISTANCE <= 1
 
 
 def test_forces_are_positive():

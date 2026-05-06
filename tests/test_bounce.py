@@ -8,7 +8,7 @@ import pytest
 from src.entities.ball import Ball
 from src.entities.obstacle import Obstacle
 from src.entities.platform import Platform
-from src.utils.config import GRAVITY, MATERIALS
+from src.utils.config import DAMPING, GRAVITY, MATERIALS
 
 
 DT = 1 / 60.0
@@ -17,6 +17,7 @@ DT = 1 / 60.0
 def _new_space():
     sp = pymunk.Space()
     sp.gravity = GRAVITY
+    sp.damping = DAMPING  # совпадает с миром игры
     return sp
 
 

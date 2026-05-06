@@ -4,30 +4,25 @@
 import pygame
 import pymunk
 from ..utils.config import MATERIALS, RED, BLACK
-from ..utils.physics import custom_velocity_func
 
 
 class Ball:
     def __init__(self, x, y, radius=20, space=None):
         self.radius = radius
         self.space = space
-        
-        # Используем конфигурацию материалов
+
         material = MATERIALS['ball']
         self.mass = material['mass']
         self.elasticity = material['elasticity']
-        
-        # Создаем физическое тело с реалистичными параметрами
+
         moment = pymunk.moment_for_circle(self.mass, 0, self.radius)
         self.body = pymunk.Body(self.mass, moment)
         self.body.position = x, y
-        self.body.velocity_func = custom_velocity_func  # Кастомная функция скорости
-        
-        # Создаем форму
+
         self.shape = pymunk.Circle(self.body, self.radius)
         self.shape.elasticity = self.elasticity
         self.shape.friction = material['friction']
-        
+
         if space:
             space.add(self.body, self.shape)
         

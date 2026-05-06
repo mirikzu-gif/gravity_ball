@@ -1,14 +1,11 @@
-"""Юнит-тесты физических утилит: is_on_ground и custom_velocity_func."""
-import math
-
+"""Юнит-тесты is_on_ground и интеграции с pymunk-физикой."""
 import pymunk
 import pytest
 
 from src.entities.ball import Ball
 from src.entities.obstacle import Obstacle
 from src.entities.platform import Platform
-from src.utils.config import AIR_RESISTANCE
-from src.utils.physics import custom_velocity_func, is_on_ground
+from src.utils.physics import is_on_ground
 
 
 # ---------------------------------------------------------------------------
@@ -74,90 +71,42 @@ def test_is_on_ground_just_above_surface_returns_false(space):
 
 
 # ---------------------------------------------------------------------------
-# custom_velocity_func
+# Затухание через space.damping (pymunk per-second damping)
 # ---------------------------------------------------------------------------
 
 
-def _make_test_body(space, velocity=(0, 0)):
-    body = pymunk.Body(1.0, pymunk.moment_for_circle(1.0, 0, 5))
-    body.position = (0, 0)
-    body.velocity = velocity
-    body.velocity_func = custom_velocity_func
-    shape = pymunk.Circle(body, 5)
-    space.add(body, shape)
-    return body
-
-
-def test_custom_velocity_func_applies_air_resistance(space):
-    """Без гравитации скорость падает геометрически с коэффициентом AIR_RESISTANCE."""
+def test_space_damping_decays_horizontal_velocity(space):
+    """С damping<1 горизонтальная скорость убывает со временем."""
     space.gravity = (0, 0)
-    space.damping = 1.0
-    body = _make_test_body(space, velocity=(100, 0))
-
-    n_steps = 10
-    dt = 1 / 60.0
-    for _ in range(n_steps):
-        space.step(dt)
-
-    expected = 100 * (AIR_RESISTANCE ** n_steps)
-    assert body.velocity.x == pytest.approx(expected, rel=1e-6)
-
-
-def test_custom_velocity_func_applies_gravity(space):
-    """С гравитацией и нулевой начальной скоростью тело набирает скорость вниз."""
-    space.gravity = (0, 980)
-    space.damping = 1.0
-    body = _make_test_body(space, velocity=(0, 0))
-
-    space.step(1 / 60.0)
-
-    # update_velocity: vy = 0 + 980 * (1/60) ≈ 16.33
-    # затем * AIR_RESISTANCE = 0.99 → ≈ 16.17
-    expected = 980 * (1 / 60.0) * AIR_RESISTANCE
-    assert body.velocity.y == pytest.approx(expected, rel=1e-3)
-
-
-def test_custom_velocity_func_horizontal_decays(space):
-    """Горизонтальная скорость не растёт со временем (только убывает)."""
-    space.gravity = (0, 980)
-    space.damping = 1.0
-    body = _make_test_body(space, velocity=(200, 0))
+    space.damping = 0.5
+    ball = Ball(0, 0, space=space)
+    ball.body.velocity = (200, 0)
 
     history = []
     for _ in range(60):
         space.step(1 / 60.0)
-        history.append(body.velocity.x)
+        history.append(ball.body.velocity.x)
 
-    # монотонное убывание
     for prev, curr in zip(history, history[1:]):
         assert curr < prev
     assert history[-1] < 200
 
 
-def test_custom_velocity_func_does_not_affect_static_bodies(space):
-    """Статические тела не имеют velocity_func — проверяем что функция к ним не применяется."""
-    space.gravity = (0, 980)
-    plat = Platform(100, 100, 200, 20, space=space)
-    initial = (plat.body.position.x, plat.body.position.y)
+def test_space_damping_one_does_not_decay(space):
+    """damping=1.0 — затухания нет."""
+    space.gravity = (0, 0)
+    space.damping = 1.0
+    ball = Ball(0, 0, space=space)
+    ball.body.velocity = (100, 0)
 
     for _ in range(60):
         space.step(1 / 60.0)
 
-    assert plat.body.position.x == initial[0]
-    assert plat.body.position.y == initial[1]
-
-
-def test_custom_velocity_func_signature_matches_pymunk():
-    """Сигнатура совместима с pymunk: (body, gravity, damping, dt)."""
-    body = pymunk.Body(1.0, pymunk.moment_for_circle(1.0, 0, 5))
-    body.velocity = (10, 0)
-    custom_velocity_func(body, (0, 0), 1.0, 1 / 60.0)
-    # Должна примениться только air resistance — гравитация 0, damping 1.
-    assert body.velocity.x == pytest.approx(10 * AIR_RESISTANCE)
+    assert ball.body.velocity.x == pytest.approx(100, rel=1e-6)
 
 
 # ---------------------------------------------------------------------------
-# Интеграция: мяч + поверхность + гравитация
+# Интеграция: мяч + гравитация
 # ---------------------------------------------------------------------------
 
 

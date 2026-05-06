@@ -54,13 +54,6 @@ def test_ball_without_space_is_not_registered():
     assert ball.shape is not None
 
 
-def test_ball_has_custom_velocity_func(space):
-    from src.utils.physics import custom_velocity_func
-
-    ball = Ball(0, 0, space=space)
-    assert ball.body.velocity_func is custom_velocity_func
-
-
 def test_apply_force_changes_velocity(space):
     space.gravity = (0, 0)  # отключаем гравитацию для чистоты теста
     ball = Ball(100, 100, space=space)
@@ -115,14 +108,10 @@ def test_apply_impulse_changes_velocity_immediately(space):
 
 
 def test_apply_impulse_velocity_change_is_unaffected_by_dt(space):
-    """Δv от импульса — мгновенная и не масштабируется dt последующих шагов.
-
-    Используем vanilla update_velocity, чтобы AIR_RESISTANCE из custom_velocity_func
-    не влиял на чистоту проверки.
-    """
+    """Δv от импульса — мгновенная и не масштабируется dt последующих шагов."""
     space.gravity = (0, 0)
+    # space.damping = 1.0 по умолчанию у pymunk — без сил velocity не должна меняться
     ball = Ball(100, 100, space=space)
-    ball.body.velocity_func = pymunk.Body.update_velocity
 
     ball.apply_impulse((0, -100))
     v_after_impulse = ball.body.velocity.y
