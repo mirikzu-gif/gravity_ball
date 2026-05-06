@@ -38,17 +38,22 @@ def test_is_on_ground_resting_on_platform_returns_true(space):
     assert is_on_ground(ball, space) is True
 
 
-def test_is_on_ground_touching_wall_returns_true(space):
-    """Текущая реализация считает «на земле» любой контакт, в т.ч. со стеной сбоку.
-
-    Этот тест фиксирует существующее поведение — если оно изменится при рефакторинге,
-    тест осознанно упадёт.
-    """
+def test_is_on_ground_touching_wall_side_returns_false(space):
+    """Касание стены сбоку не должно считаться «на земле» — иначе можно прыгать у стены."""
     # Вертикальная стена: центр (0, 350), 10×700 → x ∈ [-5, 5], y ∈ [0, 700]
     Obstacle(0, 350, 10, 700, static=True, space=space)
-    # Мяч с центром x=21 — левая контрольная точка x=0, y=100 внутри стены.
+    # Мяч в воздухе вплотную к стене слева.
     ball = Ball(21, 100, space=space)
-    assert is_on_ground(ball, space) is True
+    assert is_on_ground(ball, space) is False
+
+
+def test_is_on_ground_touching_ceiling_returns_false(space):
+    """Касание потолка сверху не считается «на земле»."""
+    # Потолок: горизонтальная плита прямо над мячом.
+    Obstacle(500, 100, 400, 20, static=True, space=space)
+    # Мяч под потолком: его верхушка в потолке, а низ — в воздухе.
+    ball = Ball(500, 130, space=space)
+    assert is_on_ground(ball, space) is False
 
 
 def test_is_on_ground_ignores_own_shape(space):
