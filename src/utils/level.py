@@ -1,13 +1,16 @@
 """Описание уровней и сборка их в pymunk.Space.
 
-Уровни хранятся в levels/levels.json — массив объектов с полями
-`name`, `ball_start`, `platforms`, `obstacles`, `goal`. Каждый блок
-описывается четвёркой `[x, y, width, height]`.
+Каждый уровень живёт в собственном JSON-файле в `levels/`. Файл
+`levels/manifest.json` определяет порядок: ["start", "znakomstvo"]
+→ загружаются `levels/start.json`, `levels/znakomstvo.json`.
+
+Загрузка ленивая: `LevelCatalog` читает файл уровня только при первом
+обращении (`LEVELS[i]`), чтобы не парсить все уровни на старте.
 """
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import NamedTuple, Tuple, Union
+from typing import Dict, NamedTuple, Tuple, Union
 
 from ..entities.goal import Goal
 from ..entities.obstacle import Obstacle
@@ -62,8 +65,33 @@ def _level_from_dict(item: dict) -> LevelDef:
     )
 
 
+def load_level_file(path: Union[str, Path]) -> LevelDef:
+    """Загружает один уровень из файла {name, ball_start, platforms, obstacles, goal}."""
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    if not isinstance(data, dict):
+        raise ValueError(f"корень файла уровня должен быть объектом, получено {type(data).__name__}")
+    return _level_from_dict(data)
+
+
+def load_manifest(path: Union[str, Path]) -> Tuple[str, ...]:
+    """Загружает manifest.json — упорядоченный список имён уровней."""
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    if not isinstance(data, dict) or "levels" not in data:
+        raise ValueError("manifest должен быть объектом с полем 'levels'")
+    levels = data["levels"]
+    if not isinstance(levels, list):
+        raise ValueError("manifest['levels'] должен быть массивом")
+    return tuple(levels)
+
+
 def load_levels(path: Union[str, Path]) -> Tuple[LevelDef, ...]:
-    """Загружает массив уровней из JSON-файла."""
+    """Загружает массив уровней из одного JSON-файла (legacy формат).
+
+    Совместимость с прежним форматом, где все уровни лежали в одном файле-массиве.
+    Сейчас не используется в продакшене — рантайм работает через LevelCatalog.
+    """
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
     if not isinstance(data, list):
@@ -71,11 +99,47 @@ def load_levels(path: Union[str, Path]) -> Tuple[LevelDef, ...]:
     return tuple(_level_from_dict(item) for item in data)
 
 
-_DEFAULT_LEVELS_PATH = (
-    Path(__file__).resolve().parent.parent.parent / "levels" / "levels.json"
+class LevelCatalog:
+    """Ленивая коллекция уровней.
+
+    Парсит manifest сразу (нужно знать длину/имена), а конкретный LevelDef
+    читает с диска при первом __getitem__ и кэширует.
+    """
+
+    def __init__(self, manifest_path: Union[str, Path]) -> None:
+        manifest_path = Path(manifest_path)
+        self._dir = manifest_path.parent
+        self._names: Tuple[str, ...] = load_manifest(manifest_path)
+        self._cache: Dict[int, LevelDef] = {}
+
+    def __len__(self) -> int:
+        return len(self._names)
+
+    def __getitem__(self, index: int) -> LevelDef:
+        if not 0 <= index < len(self._names):
+            raise IndexError(index)
+        if index not in self._cache:
+            path = self._dir / f"{self._names[index]}.json"
+            self._cache[index] = load_level_file(path)
+        return self._cache[index]
+
+    def __iter__(self):
+        for i in range(len(self)):
+            yield self[i]
+
+    @property
+    def names(self) -> Tuple[str, ...]:
+        return self._names
+
+    def is_loaded(self, index: int) -> bool:
+        return index in self._cache
+
+
+_DEFAULT_MANIFEST_PATH = (
+    Path(__file__).resolve().parent.parent.parent / "levels" / "manifest.json"
 )
 
-LEVELS: Tuple[LevelDef, ...] = load_levels(_DEFAULT_LEVELS_PATH)
+LEVELS: LevelCatalog = LevelCatalog(_DEFAULT_MANIFEST_PATH)
 
 
 # ---------------------------------------------------------------------------
