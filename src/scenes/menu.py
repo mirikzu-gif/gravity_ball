@@ -15,16 +15,16 @@ class MenuScene(Scene):
 
         self._title = self._title_font.render("Gravity Ball", True, BLACK)
         self._hint = self._hint_font.render(
-            "Enter — играть    Esc — выход", True, BLACK
+            "Enter — выбор уровня    Esc — выход", True, BLACK
         )
 
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type != pygame.KEYDOWN:
             return
         if event.key in (pygame.K_RETURN, pygame.K_SPACE):
-            from .play import GameScene
+            from .level_select import LevelSelectScene
 
-            self.next_scene = GameScene()
+            self.next_scene = LevelSelectScene()
         elif event.key in (pygame.K_ESCAPE, pygame.K_q):
             pygame.event.post(pygame.event.Event(pygame.QUIT))
 

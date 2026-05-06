@@ -1,24 +1,24 @@
 """Тесты MenuScene."""
 import pygame
 
+from src.scenes.level_select import LevelSelectScene
 from src.scenes.menu import MenuScene
-from src.scenes.play import GameScene
 
 
 def _ev(type_, **attrs):
     return pygame.event.Event(type_, **attrs)
 
 
-def test_enter_transitions_to_game():
+def test_enter_transitions_to_level_select():
     scene = MenuScene()
     scene.handle_event(_ev(pygame.KEYDOWN, key=pygame.K_RETURN))
-    assert isinstance(scene.next_scene, GameScene)
+    assert isinstance(scene.next_scene, LevelSelectScene)
 
 
-def test_space_transitions_to_game():
+def test_space_transitions_to_level_select():
     scene = MenuScene()
     scene.handle_event(_ev(pygame.KEYDOWN, key=pygame.K_SPACE))
-    assert isinstance(scene.next_scene, GameScene)
+    assert isinstance(scene.next_scene, LevelSelectScene)
 
 
 def test_escape_posts_quit():
