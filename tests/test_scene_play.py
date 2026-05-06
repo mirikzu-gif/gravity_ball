@@ -6,17 +6,17 @@ from src.game.jump_controller import JumpState
 from src.scenes.play import JUMP_IMPULSE, GameScene
 from src.scenes.win import WinScene
 from src.utils.config import FIXED_DT, JUMP_FORCE
+from src.utils.level import LEVELS
 
 
 def _ev(type_, **attrs):
     return pygame.event.Event(type_, **attrs)
 
 
-def _put_ball_on_platform(scene):
-    """Кладёт мяч на верхнюю платформу (200, 600) с лёгким перекрытием.
+def _put_ball_on_first_level_platform(scene):
+    """Кладёт мяч на верхнюю платформу 1-го уровня (200, 600) с лёгким перекрытием.
 
-    Платформа: y ∈ [590, 610]. Мяч center y=580 → нижний probe (radius+1=21)
-    окажется в y=601, гарантированно внутри платформы.
+    Используется только для тестов первого уровня — другие имеют другую геометрию.
     """
     scene._ball.body.position = (200, 580)
     scene._ball.body.velocity = (0, 0)
@@ -63,7 +63,7 @@ def test_handle_quit_posts_pygame_quit():
 def test_space_keydown_starts_jump_charging_when_on_ground():
     """Мяч стоит на платформе → нажатие пробела стартует зарядку."""
     scene = GameScene()
-    _put_ball_on_platform(scene)
+    _put_ball_on_first_level_platform(scene)
 
     assert scene._jump.state == JumpState.IDLE
     scene.handle_event(_ev(pygame.KEYDOWN, key=pygame.K_SPACE))
@@ -72,7 +72,7 @@ def test_space_keydown_starts_jump_charging_when_on_ground():
 
 def test_space_keyup_releases_jump_when_charging_on_ground():
     scene = GameScene()
-    _put_ball_on_platform(scene)
+    _put_ball_on_first_level_platform(scene)
 
     scene.handle_event(_ev(pygame.KEYDOWN, key=pygame.K_SPACE))
     initial_velocity_y = scene._ball.body.velocity.y
@@ -83,11 +83,24 @@ def test_space_keyup_releases_jump_when_charging_on_ground():
     assert scene._ball.body.velocity.y < initial_velocity_y
 
 
-def test_goal_touch_transitions_to_win_scene():
-    """Если мяч телепортировать в Goal и сделать шаг — сцена сменится."""
-    scene = GameScene()
-    # Goal в (880, 350) — переносим мяч прямо туда
-    scene._ball.body.position = (880, 350)
+def test_goal_touch_on_non_last_level_transitions_to_next_level():
+    """Касание цели на уровне < последнего → переход в следующий GameScene."""
+    assert len(LEVELS) >= 2, "тест требует ≥ 2 уровней"
+    scene = GameScene(level_index=0)
+    goal = scene.level_def.goal
+    scene._ball.body.position = (goal.x, goal.y)
+
+    scene.fixed_update(FIXED_DT)
+
+    assert isinstance(scene.next_scene, GameScene)
+    assert scene.next_scene.level_index == 1
+
+
+def test_goal_touch_on_last_level_transitions_to_win_scene():
+    last_index = len(LEVELS) - 1
+    scene = GameScene(level_index=last_index)
+    goal = scene.level_def.goal
+    scene._ball.body.position = (goal.x, goal.y)
 
     scene.fixed_update(FIXED_DT)
 
@@ -98,3 +111,28 @@ def test_no_goal_touch_keeps_scene():
     scene = GameScene()
     scene.fixed_update(FIXED_DT)
     assert scene.next_scene is None
+
+
+def test_invalid_level_index_raises():
+    with pytest.raises(ValueError):
+        GameScene(level_index=-1)
+    with pytest.raises(ValueError):
+        GameScene(level_index=len(LEVELS))
+
+
+def test_default_level_index_is_zero():
+    scene = GameScene()
+    assert scene.level_index == 0
+
+
+def test_scene_uses_level_def_ball_start():
+    scene = GameScene(level_index=2)  # Башня — старт (500, 660)
+    assert scene._ball.body.position.x == LEVELS[2].ball_start[0]
+    assert scene._ball.body.position.y == LEVELS[2].ball_start[1]
+
+
+@pytest.mark.parametrize("level_index", range(len(LEVELS)))
+def test_render_does_not_crash_for_each_level(level_index):
+    scene = GameScene(level_index=level_index)
+    screen = pygame.Surface((1000, 700))
+    scene.render(screen)

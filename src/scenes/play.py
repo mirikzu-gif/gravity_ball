@@ -15,8 +15,9 @@ from ..utils.config import (
     MAX_CHARGE_TIME,
     MOVE_FORCE,
     WHITE,
+    WIDTH,
 )
-from ..utils.level import create_level
+from ..utils.level import LEVELS, build_level
 from ..utils.physics import is_on_ground
 from .base import Scene
 
@@ -29,25 +30,39 @@ JUMP_IMPULSE = JUMP_FORCE * FIXED_DT
 class GameScene(Scene):
     """Игровая сцена: физика, ввод, цель уровня."""
 
-    def __init__(self) -> None:
+    def __init__(self, level_index: int = 0) -> None:
         super().__init__()
+        if not 0 <= level_index < len(LEVELS):
+            raise ValueError(
+                f"level_index {level_index} вне диапазона [0, {len(LEVELS)})"
+            )
+        self.level_index = level_index
+        self.level_def = LEVELS[level_index]
 
         self._space = pymunk.Space()
         self._space.gravity = GRAVITY
         self._space.damping = DAMPING
 
-        self._ball = Ball(100, 100, space=self._space)
-        self._obstacles, self._platforms, self._goal = create_level(self._space)
+        self._ball = Ball(
+            self.level_def.ball_start[0],
+            self.level_def.ball_start[1],
+            space=self._space,
+        )
+        self._obstacles, self._platforms, self._goal = build_level(
+            self._space, self.level_def
+        )
 
         self._input = InputHandler()
         self._jump = JumpController(MAX_CHARGE_TIME, JUMP_IMPULSE)
 
-        self._prev_ball_pos = self._ball.body.position
-        self._step_alpha = 0.0  # доля FIXED_DT, не «съеденная» в рендере
-
         self._info_font = pygame.font.Font(None, 36)
         self._info_text = self._info_font.render(
             "Стрелки — движение, пробел — прыжок (зажми, чтобы зарядить)",
+            True,
+            (0, 0, 0),
+        )
+        self._level_label = self._info_font.render(
+            f"Уровень {level_index + 1}/{len(LEVELS)} — {self.level_def.name}",
             True,
             (0, 0, 0),
         )
@@ -68,7 +83,6 @@ class GameScene(Scene):
                 self._ball.apply_impulse(jump_event.impulse)
 
     def fixed_update(self, dt: float) -> None:
-        self._prev_ball_pos = pymunk.Vec2d(*self._ball.body.position)
         on_ground = is_on_ground(self._ball, self._space)
 
         apply_movement_force(
@@ -82,13 +96,9 @@ class GameScene(Scene):
         self._space.step(dt)
 
         if self._goal.is_touched_by(self._ball):
-            from .win import WinScene
-
-            self.next_scene = WinScene()
+            self._on_goal_reached()
 
     def render(self, screen: pygame.Surface) -> None:
-        # Пока сцена не делает интерполяции по accumulator (рантаймом он не передаётся),
-        # рисуем по фактической позиции — рывки незаметны при FIXED_DT=1/60.
         screen.fill(WHITE)
 
         for platform in self._platforms:
@@ -102,10 +112,22 @@ class GameScene(Scene):
             self._draw_charge_bar(screen)
 
         screen.blit(self._info_text, (10, 10))
+        # номер уровня — в правом верхнем углу
+        rect = self._level_label.get_rect(topright=(WIDTH - 10, 10))
+        screen.blit(self._level_label, rect)
 
     # ------------------------------------------------------------------
     # Внутреннее
     # ------------------------------------------------------------------
+    def _on_goal_reached(self) -> None:
+        next_index = self.level_index + 1
+        if next_index >= len(LEVELS):
+            from .win import WinScene
+
+            self.next_scene = WinScene()
+        else:
+            self.next_scene = GameScene(next_index)
+
     def _draw_charge_bar(self, screen: pygame.Surface) -> None:
         bar_width = 60
         bar_height = 8

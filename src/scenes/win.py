@@ -1,4 +1,4 @@
-"""WinScene — экран победы."""
+"""WinScene — финальный экран после прохождения всех уровней."""
 import pygame
 
 from ..utils.config import BLACK, HEIGHT, WHITE, WIDTH
@@ -6,7 +6,7 @@ from .base import Scene
 
 
 class WinScene(Scene):
-    """Экран после прохождения. Enter — заново; Esc/Q — выход."""
+    """Экран после прохождения последнего уровня. Enter — заново с первого; Esc/Q — выход."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -14,10 +14,10 @@ class WinScene(Scene):
         self._hint_font = pygame.font.Font(None, 32)
 
         self._title = self._title_font.render(
-            "Уровень пройден!", True, (0, 120, 0)
+            "Все уровни пройдены!", True, (0, 120, 0)
         )
         self._hint = self._hint_font.render(
-            "Enter — заново    Esc — выход", True, BLACK
+            "Enter — играть заново    Esc — выход", True, BLACK
         )
 
     def handle_event(self, event: pygame.event.Event) -> None:
@@ -26,7 +26,7 @@ class WinScene(Scene):
         if event.key in (pygame.K_RETURN, pygame.K_SPACE):
             from .play import GameScene
 
-            self.next_scene = GameScene()
+            self.next_scene = GameScene(level_index=0)
         elif event.key in (pygame.K_ESCAPE, pygame.K_q):
             pygame.event.post(pygame.event.Event(pygame.QUIT))
 
