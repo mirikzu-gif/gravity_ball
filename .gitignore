@@ -223,3 +223,6 @@ __marimo__/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local player progress — не должно попасть в репозиторий
+best_times.json

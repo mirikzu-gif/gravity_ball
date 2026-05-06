@@ -6,7 +6,7 @@ from ..entities.ball import Ball
 from ..game.input_handler import InputAction, InputHandler
 from ..game.jump_controller import JumpController
 from ..game.movement import apply_movement_force
-from ..utils import audio
+from ..utils import audio, best_times
 from ..utils.config import (
     DAMPING,
     FIXED_DT,
@@ -186,6 +186,7 @@ class GameScene(Scene):
     # ------------------------------------------------------------------
     def _on_goal_reached(self) -> None:
         audio.play_goal()
+        best_times.record_level(self.level_def.name, self._elapsed)
         total = self._total_elapsed_before + self._elapsed
         next_index = self.level_index + 1
         if next_index >= len(LEVELS):

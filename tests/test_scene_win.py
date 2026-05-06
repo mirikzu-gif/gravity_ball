@@ -3,6 +3,7 @@ import pygame
 
 from src.scenes.play import GameScene
 from src.scenes.win import WinScene
+from src.utils import best_times
 
 
 def _ev(type_, **attrs):
@@ -45,3 +46,24 @@ def test_total_time_stored_and_rendered():
     # render не должен падать
     screen = pygame.Surface((1000, 700))
     scene.render(screen)
+
+
+def test_first_run_records_new_record():
+    scene = WinScene(total_time=42.0)
+    assert scene.is_new_record is True
+    assert best_times.best_total() == 42.0
+
+
+def test_better_time_records_new_record():
+    best_times.record_total(50.0)
+    scene = WinScene(total_time=42.0)
+    assert scene.is_new_record is True
+    assert best_times.best_total() == 42.0
+
+
+def test_worse_time_does_not_record():
+    best_times.record_total(20.0)
+    scene = WinScene(total_time=42.0)
+    assert scene.is_new_record is False
+    assert scene.best_total == 20.0
+    assert best_times.best_total() == 20.0

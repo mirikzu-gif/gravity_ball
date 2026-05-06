@@ -8,6 +8,8 @@ import pygame
 import pymunk
 import pytest
 
+from src.utils import best_times
+
 
 @pytest.fixture(autouse=True)
 def _pygame_init():
@@ -25,6 +27,13 @@ def _pygame_init():
     except pygame.error:
         # pygame.quit() мог быть вызван внутри теста (run_scenes)
         pass
+
+
+@pytest.fixture(autouse=True)
+def _isolated_best_times(monkeypatch, tmp_path):
+    """Каждый тест получает свой best_times.json в tmp_path,
+    чтобы не мусорить и не зависеть от реального файла рекордов."""
+    monkeypatch.setattr(best_times, "DEFAULT_PATH", tmp_path / "best_times.json")
 
 
 @pytest.fixture

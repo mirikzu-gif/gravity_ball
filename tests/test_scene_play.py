@@ -220,6 +220,24 @@ def test_total_elapsed_carries_to_win_scene():
     assert scene.next_scene.total_time == pytest.approx(5.0 + FIXED_DT)
 
 
+def test_goal_reached_records_level_best_time():
+    from src.utils import best_times
+
+    scene = GameScene(level_index=0)
+    # имитируем длительное прохождение
+    for _ in range(60):
+        scene.fixed_update(FIXED_DT)
+    elapsed = scene._elapsed
+
+    goal = scene.level_def.goal
+    scene._ball.body.position = (goal.x, goal.y)
+    scene.fixed_update(FIXED_DT)
+
+    assert best_times.best_for_level(scene.level_def.name) == pytest.approx(
+        elapsed + FIXED_DT
+    )
+
+
 def test_r_resets_level_timer_but_keeps_total():
     scene = GameScene(level_index=0, total_elapsed=10.0)
     for _ in range(60):
