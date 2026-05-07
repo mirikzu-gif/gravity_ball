@@ -21,6 +21,7 @@ from ..utils.config import (
 )
 from ..utils.level import LEVELS, build_level
 from ..utils.physics import is_on_ground
+from ..rendering.world_renderer import WorldRenderer
 from .base import Scene
 
 
@@ -48,17 +49,18 @@ def _on_collision_post_solve(arbiter, space, data):
         audio.play_bounce()
 
 
-def _build_background():
+def _build_background(sprites=None):
     """Возвращает Surface для фона.
 
     Если есть assets/background.png — масштабируется к размеру окна и используется;
     иначе fallback на простой вертикальный градиент.
     """
-    sprite = assets.get_image("background.png")
+    if sprites is None:
+        sprites = assets.get_sprite_manager()
+
+    sprite = sprites.get_scaled("background", (WIDTH, HEIGHT))
     if sprite is not None:
-        if sprite.get_size() == (WIDTH, HEIGHT):
-            return sprite
-        return pygame.transform.smoothscale(sprite, (WIDTH, HEIGHT))
+        return sprite
 
     surface = pygame.Surface((WIDTH, HEIGHT))
     top = (200, 222, 245)
@@ -85,6 +87,7 @@ class GameScene(Scene):
             )
         self.level_index = level_index
         self.level_def = LEVELS[level_index]
+        audio.play_background()
         # Время с прошлых уровней + текущее на этом уровне.
         self._total_elapsed_before = total_elapsed
         self._elapsed = 0.0
@@ -111,7 +114,9 @@ class GameScene(Scene):
         # Для интерполяции рендера: позиция в начале последнего физ. шага.
         self._prev_ball_pos = pymunk.Vec2d(*self._ball.body.position)
 
-        self._background = _build_background()
+        self._sprites = assets.get_sprite_manager()
+        self._world_renderer = WorldRenderer(self._sprites)
+        self._background = _build_background(self._sprites)
         self._clouds = generate_clouds()
         self._info_font = pygame.font.Font(None, 36)
         self._info_text = self._info_font.render(
@@ -195,12 +200,14 @@ class GameScene(Scene):
         for cloud in self._clouds:
             cloud.draw(screen, (255, 255, 255))
 
-        for platform in self._platforms:
-            platform.draw(screen)
-        for obstacle in self._obstacles:
-            obstacle.draw(screen)
-        self._goal.draw(screen)
-        self._ball.draw(screen, position=ball_render_pos)
+        self._world_renderer.draw(
+            screen,
+            self._platforms,
+            self._obstacles,
+            self._goal,
+            self._ball,
+            ball_render_pos,
+        )
 
         if self._jump.is_charging and is_on_ground(self._ball, self._space):
             self._draw_charge_bar(screen, ball_render_pos)

@@ -1,4 +1,5 @@
 """Юнит-тесты Obstacle: статическое/динамическое тело и материал."""
+import pygame
 import pymunk
 import pytest
 
@@ -76,3 +77,24 @@ def test_static_obstacle_does_not_fall_under_gravity(space):
     for _ in range(60):
         space.step(1 / 60.0)
     assert obs.body.position.y == initial_y
+
+
+class _Sprites:
+    def __init__(self):
+        self.tiled_calls = []
+
+    def get_tiled(self, sprite_id, size):
+        self.tiled_calls.append((sprite_id, size))
+        surface = pygame.Surface(size, pygame.SRCALPHA)
+        surface.fill((80, 90, 100))
+        return surface
+
+
+def test_obstacle_draw_uses_tiled_sprite(space):
+    sprites = _Sprites()
+    screen = pygame.Surface((200, 200))
+    obs = Obstacle(100, 100, 40, 80, static=True, space=space)
+
+    obs.draw(screen, sprites=sprites)
+
+    assert sprites.tiled_calls == [("obstacle", (40, 80))]

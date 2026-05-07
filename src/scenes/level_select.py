@@ -18,6 +18,8 @@ class LevelSelectScene(Scene):
 
     PREVIEW_SIZE = (220, 154)
     ROW_HEIGHT = 180
+    LIST_TOP = 130
+    VISIBLE_ROWS = 3
 
     def __init__(self, selected: int = 0) -> None:
         super().__init__()
@@ -67,13 +69,16 @@ class LevelSelectScene(Scene):
         title_rect = self._title.get_rect(center=(WIDTH // 2, 60))
         screen.blit(self._title, title_rect)
 
-        # Рисуем строки уровней по центру
-        list_top = 130
-        x_preview = WIDTH // 2 - self.PREVIEW_SIZE[0] // 2 - 220
-        x_text = WIDTH // 2 - self.PREVIEW_SIZE[0] // 2 + self.PREVIEW_SIZE[0] + 30
+        # Рисуем окно из нескольких строк вокруг выбранного уровня.
+        max_start = max(0, len(LEVELS) - self.VISIBLE_ROWS)
+        scroll_start = min(
+            max(0, self.selected - self.VISIBLE_ROWS // 2),
+            max_start,
+        )
+        scroll_end = min(len(LEVELS), scroll_start + self.VISIBLE_ROWS)
 
-        for i, name in enumerate(LEVELS.names):
-            y = list_top + i * self.ROW_HEIGHT
+        for row, i in enumerate(range(scroll_start, scroll_end)):
+            y = self.LIST_TOP + row * self.ROW_HEIGHT
             preview = self._previews[i]
 
             # Highlight активной строки

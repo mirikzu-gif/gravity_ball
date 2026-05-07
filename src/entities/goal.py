@@ -4,6 +4,7 @@ import math
 import pygame
 import pymunk
 
+from ..utils import assets
 from ..utils.config import BLACK, YELLOW
 
 
@@ -48,7 +49,7 @@ class Goal:
                 return True
         return False
 
-    def draw(self, screen):
+    def draw(self, screen, sprites=None):
         pos = int(self.body.position.x), int(self.body.position.y)
         rect = pygame.Rect(
             pos[0] - self.width // 2,
@@ -56,9 +57,8 @@ class Goal:
             self.width,
             self.height,
         )
-        pygame.draw.rect(screen, YELLOW, rect)
-        pygame.draw.rect(screen, BLACK, rect, 3)
-        pygame.draw.circle(screen, BLACK, pos, 4)
+        if sprites is None:
+            sprites = assets.get_sprite_manager()
 
         # Пульсирующий ореол, чтобы цель сразу бросалась в глаза.
         t = pygame.time.get_ticks() / 1000.0
@@ -66,3 +66,12 @@ class Goal:
         glow_radius = int(max(self.width, self.height) // 2 + 8 + pulse * 12)
         glow_thickness = 2 + int(pulse * 2)
         pygame.draw.circle(screen, YELLOW, pos, glow_radius, glow_thickness)
+
+        sprite = sprites.get_scaled("goal", (int(self.width), int(self.height)))
+        if sprite is not None:
+            screen.blit(sprite, rect)
+            return
+
+        pygame.draw.rect(screen, YELLOW, rect)
+        pygame.draw.rect(screen, BLACK, rect, 3)
+        pygame.draw.circle(screen, BLACK, pos, 4)

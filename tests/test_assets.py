@@ -85,3 +85,37 @@ def test_default_ball_loads():
     assets.reset_cache()
     surf = assets.get_image("ball.png")
     assert surf is not None
+
+
+def test_default_platform_loads():
+    project_assets = Path(__file__).resolve().parent.parent / "assets"
+    if not (project_assets / "platform.png").exists():
+        pytest.skip("assets/platform.png отсутствует — запусти tools/generate_assets.py")
+    assets.reset_cache()
+    surf = assets.get_image("platform.png")
+    assert surf is not None
+
+
+def test_default_obstacle_loads():
+    project_assets = Path(__file__).resolve().parent.parent / "assets"
+    if not (project_assets / "obstacle.png").exists():
+        pytest.skip("assets/obstacle.png отсутствует — запусти tools/generate_assets.py")
+    assets.reset_cache()
+    surf = assets.get_image("obstacle.png")
+    assert surf is not None
+
+
+def test_default_obstacle_is_square_block():
+    project_assets = Path(__file__).resolve().parent.parent / "assets"
+    if not (project_assets / "obstacle.png").exists():
+        pytest.skip("assets/obstacle.png отсутствует — запусти tools/generate_assets.py")
+    assets.reset_cache()
+    surf = assets.get_image("obstacle.png")
+    assert surf.get_width() == surf.get_height()
+    corners = [
+        surf.get_at((0, 0)),
+        surf.get_at((surf.get_width() - 1, 0)),
+        surf.get_at((0, surf.get_height() - 1)),
+        surf.get_at((surf.get_width() - 1, surf.get_height() - 1)),
+    ]
+    assert all(corner.a == 255 for corner in corners)

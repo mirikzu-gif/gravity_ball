@@ -1,6 +1,7 @@
 """MenuScene — заглавный экран."""
 import pygame
 
+from ..utils import audio
 from ..utils.config import BLACK, HEIGHT, WHITE, WIDTH
 from .base import Scene
 
@@ -10,6 +11,7 @@ class MenuScene(Scene):
 
     def __init__(self) -> None:
         super().__init__()
+        audio.stop_background()
         self._title_font = pygame.font.Font(None, 96)
         self._hint_font = pygame.font.Font(None, 32)
 

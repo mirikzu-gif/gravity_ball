@@ -2,7 +2,7 @@
 import pygame
 
 from src.scenes.base import Scene
-from src.scenes.runner import run_scenes
+from src.scenes.runner import _set_display, run_scenes
 
 
 class _RecordingScene(Scene):
@@ -96,6 +96,56 @@ def test_run_scenes_handles_f11_without_crashing(monkeypatch):
         not (e.type == pygame.KEYDOWN and e.key == pygame.K_F11)
         for e in scene.events_seen
     )
+
+
+def test_set_display_uses_scaled_fullscreen(monkeypatch):
+    calls = []
+    surface = pygame.Surface((1000, 700))
+
+    def fake_set_mode(size, flags=0):
+        calls.append((size, flags))
+        return surface
+
+    monkeypatch.setattr(pygame.display, "set_mode", fake_set_mode)
+    monkeypatch.setattr(pygame.display, "get_driver", lambda: "windows")
+
+    assert _set_display(fullscreen=True) is surface
+
+    assert calls == [((1000, 700), pygame.SCALED | pygame.FULLSCREEN)]
+
+
+def test_set_display_falls_back_when_scaled_fails(monkeypatch):
+    calls = []
+    surface = pygame.Surface((1000, 700))
+
+    def fake_set_mode(size, flags=0):
+        calls.append((size, flags))
+        if len(calls) == 1:
+            raise pygame.error("scaled unavailable")
+        return surface
+
+    monkeypatch.setattr(pygame.display, "set_mode", fake_set_mode)
+    monkeypatch.setattr(pygame.display, "get_driver", lambda: "windows")
+
+    assert _set_display(fullscreen=False) is surface
+
+    assert calls == [((1000, 700), pygame.SCALED), ((1000, 700), 0)]
+
+
+def test_set_display_skips_scaled_on_dummy_driver(monkeypatch):
+    calls = []
+    surface = pygame.Surface((1000, 700))
+
+    def fake_set_mode(size, flags=0):
+        calls.append((size, flags))
+        return surface
+
+    monkeypatch.setattr(pygame.display, "set_mode", fake_set_mode)
+    monkeypatch.setattr(pygame.display, "get_driver", lambda: "dummy")
+
+    assert _set_display(fullscreen=False) is surface
+
+    assert calls == [((1000, 700), 0)]
 
 
 def test_run_scenes_renders_first_scene_before_transition():

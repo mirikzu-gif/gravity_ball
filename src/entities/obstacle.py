@@ -1,8 +1,11 @@
 """
 Класс препятствия
 """
+import math
+
 import pygame
 import pymunk
+from ..utils import assets
 from ..utils.config import MATERIALS, BLUE, BLACK
 
 
@@ -37,16 +40,33 @@ class Obstacle:
         if space:
             space.add(self.body, self.shape)
     
-    def draw(self, screen):
-        """Рисует препятствие"""
-        pos = int(self.body.position.x), int(self.body.position.y)
-        
-        # Получаем углы прямоугольника с учетом вращения
+    def _vertices(self):
         vertices = []
         for v in self.shape.get_vertices():
             x = v.rotated(self.body.angle).x + self.body.position.x
             y = v.rotated(self.body.angle).y + self.body.position.y
             vertices.append((int(x), int(y)))
+        return vertices
+
+    def draw(self, screen, sprites=None):
+        """Рисует препятствие"""
+        pos = int(self.body.position.x), int(self.body.position.y)
+        if sprites is None:
+            sprites = assets.get_sprite_manager()
+
+        size = (int(self.width), int(self.height))
+        sprite = sprites.get_tiled("obstacle", size)
+        if sprite is not None:
+            if self.body.angle:
+                sprite = pygame.transform.rotate(
+                    sprite,
+                    -math.degrees(self.body.angle),
+                )
+            rect = sprite.get_rect(center=pos)
+            screen.blit(sprite, rect)
+            pygame.draw.polygon(screen, BLACK, self._vertices(), 3)
+            return
         
+        vertices = self._vertices()
         pygame.draw.polygon(screen, BLUE, vertices)
         pygame.draw.polygon(screen, BLACK, vertices, 3)

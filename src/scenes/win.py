@@ -1,7 +1,7 @@
 """WinScene — финальный экран после прохождения всех уровней."""
 import pygame
 
-from ..utils import best_times
+from ..utils import audio, best_times
 from ..utils.config import BLACK, HEIGHT, WHITE, WIDTH
 from .base import Scene
 
@@ -16,6 +16,7 @@ class WinScene(Scene):
 
     def __init__(self, total_time: float = 0.0) -> None:
         super().__init__()
+        audio.stop_background()
         self.total_time = total_time
 
         # Если время лучше предыдущего рекорда — обновляем; запоминаем для UI.

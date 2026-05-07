@@ -1,4 +1,5 @@
 """Юнит-тесты Platform: статическое тело, геометрия и материал wood."""
+import pygame
 import pymunk
 import pytest
 
@@ -58,3 +59,24 @@ def test_platform_does_not_move_under_gravity(space):
         space.step(1 / 60.0)
     assert plat.body.position.x == initial_position[0]
     assert plat.body.position.y == initial_position[1]
+
+
+class _Sprites:
+    def __init__(self):
+        self.tiled_calls = []
+
+    def get_tiled(self, sprite_id, size):
+        self.tiled_calls.append((sprite_id, size))
+        surface = pygame.Surface(size, pygame.SRCALPHA)
+        surface.fill((120, 80, 40))
+        return surface
+
+
+def test_platform_draw_uses_tiled_sprite(space):
+    sprites = _Sprites()
+    screen = pygame.Surface((300, 200))
+    plat = Platform(150, 100, 200, 20, space=space)
+
+    plat.draw(screen, sprites=sprites)
+
+    assert sprites.tiled_calls == [("platform", (200, 20))]

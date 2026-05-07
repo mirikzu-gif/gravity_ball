@@ -36,7 +36,7 @@ class Ball:
         """Применяет мгновенный импульс — изменяет velocity сразу, не зависит от dt."""
         self.body.apply_impulse_at_world_point(impulse, self.body.position)
 
-    def draw(self, screen, position=None):
+    def draw(self, screen, position=None, sprites=None):
         """Рисует мяч. position позволяет передать интерполированную позицию для рендера.
 
         Если в assets/ball.png есть спрайт подходящего размера — используется он;
@@ -44,7 +44,13 @@ class Ball:
         """
         if position is None:
             position = self.body.position
-        sprite = assets.get_image("ball.png")
+        if sprites is None:
+            sprites = assets.get_sprite_manager()
+
+        sprite = sprites.get_scaled(
+            "ball",
+            (self.radius * 2, self.radius * 2),
+        )
         if sprite is not None:
             rect = sprite.get_rect(center=(int(position[0]), int(position[1])))
             screen.blit(sprite, rect)
