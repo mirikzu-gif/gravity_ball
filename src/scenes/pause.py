@@ -1,6 +1,7 @@
 """PauseScene — оверлей паузы поверх замороженной GameScene."""
 import pygame
 
+from ..utils import fonts
 from ..utils.config import BLACK, HEIGHT, WIDTH
 from .base import Scene
 
@@ -18,8 +19,8 @@ class PauseScene(Scene):
         super().__init__()
         self._game = paused_game
 
-        self._title_font = pygame.font.Font(None, 96)
-        self._hint_font = pygame.font.Font(None, 32)
+        self._title_font = fonts.title(46)
+        self._hint_font = fonts.ui(20)
 
         self._title = self._title_font.render("Пауза", True, (255, 255, 255))
         self._hint = self._hint_font.render(

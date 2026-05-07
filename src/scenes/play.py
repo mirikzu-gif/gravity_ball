@@ -6,7 +6,7 @@ from ..entities.ball import Ball
 from ..game.input_handler import InputAction, InputHandler
 from ..game.jump_controller import JumpController
 from ..game.movement import apply_movement_force
-from ..utils import assets, audio, best_times
+from ..utils import assets, audio, best_times, fonts
 from .clouds import generate_clouds
 from ..utils.config import (
     DAMPING,
@@ -118,7 +118,7 @@ class GameScene(Scene):
         self._world_renderer = WorldRenderer(self._sprites)
         self._background = _build_background(self._sprites)
         self._clouds = generate_clouds()
-        self._info_font = pygame.font.Font(None, 36)
+        self._info_font = fonts.hud(18)
         self._info_text = self._info_font.render(
             "Стрелки/пробел — играть    R — рестарт    P — пауза",
             True,

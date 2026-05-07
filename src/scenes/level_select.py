@@ -1,7 +1,7 @@
 """LevelSelectScene — список уровней с превью и лучшим временем."""
 import pygame
 
-from ..utils import best_times
+from ..utils import best_times, fonts
 from ..utils.config import BLACK, HEIGHT, WHITE, WIDTH
 from ..utils.level import LEVELS
 from .base import Scene
@@ -27,10 +27,10 @@ class LevelSelectScene(Scene):
             selected = 0
         self.selected = selected
 
-        self._title_font = pygame.font.Font(None, 56)
-        self._row_font = pygame.font.Font(None, 36)
-        self._meta_font = pygame.font.Font(None, 28)
-        self._hint_font = pygame.font.Font(None, 28)
+        self._title_font = fonts.title(28)
+        self._row_font = fonts.ui(22)
+        self._meta_font = fonts.ui(16)
+        self._hint_font = fonts.ui(16)
 
         self._title = self._title_font.render("Выбери уровень", True, BLACK)
         self._hint = self._hint_font.render(

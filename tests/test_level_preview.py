@@ -36,3 +36,35 @@ def test_preview_renders_distinct_colors_for_known_layout():
               for y in range(0, 350, 5)}
     # ожидаем хотя бы 3 разных цвета: фон, платформа, цель
     assert len(pixels) >= 3
+
+
+class _Sprites:
+    def __init__(self):
+        self.scaled_calls = []
+        self.tiled_calls = []
+
+    def get_scaled(self, sprite_id, size):
+        self.scaled_calls.append((sprite_id, size))
+        surface = pygame.Surface(size, pygame.SRCALPHA)
+        surface.fill((10, 20, 30))
+        return surface
+
+    def get_tiled(self, sprite_id, size):
+        self.tiled_calls.append((sprite_id, size))
+        surface = pygame.Surface(size, pygame.SRCALPHA)
+        surface.fill((40, 50, 60))
+        return surface
+
+
+def test_preview_uses_texture_sprites():
+    sprites = _Sprites()
+
+    make_preview(LEVELS[1], size=(500, 350), sprites=sprites)
+
+    scaled_ids = [call[0] for call in sprites.scaled_calls]
+    tiled_ids = [call[0] for call in sprites.tiled_calls]
+    assert "background" in scaled_ids
+    assert "goal" in scaled_ids
+    assert "ball" in scaled_ids
+    assert "platform" in tiled_ids
+    assert "obstacle" in tiled_ids

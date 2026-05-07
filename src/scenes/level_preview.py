@@ -7,16 +7,24 @@ from typing import Tuple
 
 import pygame
 
+from ..utils import assets
 from ..utils.config import HEIGHT, WIDTH
 from ..utils.level import LevelDef
 
 
 def make_preview(
-    level_def: LevelDef, size: Tuple[int, int] = (220, 154)
+    level_def: LevelDef, size: Tuple[int, int] = (220, 154), sprites=None
 ) -> pygame.Surface:
     """Рисует упрощённое превью уровня в Surface заданного размера."""
-    surf = pygame.Surface(size)
-    surf.fill((215, 230, 245))
+    surf = pygame.Surface(size, pygame.SRCALPHA)
+    if sprites is None:
+        sprites = assets.get_sprite_manager()
+
+    background = sprites.get_scaled("background", size)
+    if background is not None:
+        surf.blit(background, (0, 0))
+    else:
+        surf.fill((215, 230, 245))
 
     sx = size[0] / WIDTH
     sy = size[1] / HEIGHT
@@ -29,24 +37,43 @@ def make_preview(
             max(1, int(block.height * sy)),
         )
 
-    # Платформы (зелёные)
+    def _draw_tiled(sprite_id, rect, fallback_color, border_color):
+        if rect.width <= 0 or rect.height <= 0:
+            return
+        sprite = sprites.get_tiled(sprite_id, rect.size)
+        if sprite is not None:
+            surf.blit(sprite, rect)
+        else:
+            pygame.draw.rect(surf, fallback_color, rect)
+        pygame.draw.rect(surf, border_color, rect, 1)
+
+    def _draw_scaled(sprite_id, rect, fallback_color, border_color):
+        if rect.width <= 0 or rect.height <= 0:
+            return
+        sprite = sprites.get_scaled(sprite_id, rect.size)
+        if sprite is not None:
+            surf.blit(sprite, rect)
+        else:
+            pygame.draw.rect(surf, fallback_color, rect)
+        pygame.draw.rect(surf, border_color, rect, 1)
+
     for b in level_def.platforms:
-        pygame.draw.rect(surf, (50, 180, 60), _scaled(b))
+        _draw_tiled("platform", _scaled(b), (50, 180, 60), (40, 30, 20))
 
-    # Препятствия (синие)
     for b in level_def.obstacles:
-        pygame.draw.rect(surf, (50, 70, 200), _scaled(b))
+        _draw_tiled("obstacle", _scaled(b), (50, 70, 200), (30, 30, 40))
 
-    # Цель (жёлтая)
-    pygame.draw.rect(surf, (240, 220, 60), _scaled(level_def.goal))
-    pygame.draw.rect(surf, (40, 30, 0), _scaled(level_def.goal), 1)
+    _draw_scaled("goal", _scaled(level_def.goal), (240, 220, 60), (40, 30, 0))
 
-    # Старт мяча (красная точка)
     bx, by = level_def.ball_start
     radius = max(2, int(6 * min(sx, sy)))
-    pygame.draw.circle(surf, (220, 40, 40), (int(bx * sx), int(by * sy)), radius)
+    ball_sprite = sprites.get_scaled("ball", (radius * 2, radius * 2))
+    if ball_sprite is not None:
+        rect = ball_sprite.get_rect(center=(int(bx * sx), int(by * sy)))
+        surf.blit(ball_sprite, rect)
+    else:
+        pygame.draw.circle(surf, (220, 40, 40), (int(bx * sx), int(by * sy)), radius)
 
-    # Рамка
     pygame.draw.rect(surf, (60, 60, 80), surf.get_rect(), 2)
 
     return surf

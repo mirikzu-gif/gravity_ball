@@ -1,6 +1,7 @@
 """Главный цикл приложения с фиксированным шагом физики и переключением сцен."""
 import pygame
 
+from ..utils import fonts
 from ..utils.config import FIXED_DT, HEIGHT, MAX_FRAME_DT, WIDTH
 from .base import Scene
 
@@ -81,4 +82,5 @@ def run_scenes(initial_scene: Scene, caption: str = "Упругий мяч") -> 
         current.render(screen, alpha=accumulator / FIXED_DT)
         pygame.display.flip()
 
+    fonts.reset_cache()
     pygame.quit()

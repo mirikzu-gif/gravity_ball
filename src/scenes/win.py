@@ -1,7 +1,7 @@
 """WinScene — финальный экран после прохождения всех уровней."""
 import pygame
 
-from ..utils import audio, best_times
+from ..utils import audio, best_times, fonts
 from ..utils.config import BLACK, HEIGHT, WHITE, WIDTH
 from .base import Scene
 
@@ -24,9 +24,9 @@ class WinScene(Scene):
         self.is_new_record = best_times.record_total(total_time)
         self.best_total = previous_best if not self.is_new_record else total_time
 
-        self._title_font = pygame.font.Font(None, 72)
-        self._time_font = pygame.font.Font(None, 48)
-        self._hint_font = pygame.font.Font(None, 32)
+        self._title_font = fonts.title(28)
+        self._time_font = fonts.ui(26)
+        self._hint_font = fonts.ui(20)
 
         self._title = self._title_font.render(
             "Все уровни пройдены!", True, (0, 120, 0)
