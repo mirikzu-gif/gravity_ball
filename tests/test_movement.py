@@ -32,16 +32,15 @@ def test_roll_torque_left_and_right_have_opposite_signs(space):
     assert left.body.angular_velocity < 0
 
 
-def test_no_torque_in_air(space):
+def test_roll_torque_applied_in_air(space):
     space.gravity = (0, 0)
     ball = Ball(100, 100, space=space)
-    initial_angular_velocity = ball.body.angular_velocity
 
     applied = apply_roll_torque(ball, (1.0, 0.0), on_ground=False, magnitude=MAG)
     space.step(1 / 60.0)
 
-    assert applied is False
-    assert ball.body.angular_velocity == pytest.approx(initial_angular_velocity)
+    assert applied is True
+    assert ball.body.angular_velocity > 0
 
 
 def test_zero_horizontal_movement_is_noop(space):
@@ -68,20 +67,18 @@ def test_roll_torque_does_not_directly_push_ball(space):
     assert ball.body.velocity.y == pytest.approx(0)
 
 
-def test_inertia_preserved_in_air(space):
-    """В воздухе стрелки не могут ни ускорить, ни затормозить мяч."""
+def test_air_spin_does_not_push_ball(space):
+    """В воздухе стрелки крутят мяч, но не толкают его по горизонтали."""
     space.gravity = (0, 0)
     ball = Ball(100, 100, space=space)
     ball.apply_impulse((100, 0))
     initial_vx = ball.body.velocity.x
-    initial_av = ball.body.angular_velocity
 
     apply_roll_torque(ball, (1.0, 0.0), on_ground=False, magnitude=MAG)
-    apply_roll_torque(ball, (-1.0, 0.0), on_ground=False, magnitude=MAG)
     space.step(1 / 60.0)
 
     assert ball.body.velocity.x == pytest.approx(initial_vx)
-    assert ball.body.angular_velocity == pytest.approx(initial_av)
+    assert ball.body.angular_velocity > 0
 
 
 def test_legacy_helper_name_uses_roll_torque(space):
