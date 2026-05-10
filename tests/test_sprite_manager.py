@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pygame
 
-from src.rendering.sprites import SpriteManager, SpriteSpec
+from src.rendering.sprites import DEFAULT_SPRITES, SpriteManager, SpriteSpec
 
 
 def _save_test_image(path: Path, color=(20, 120, 220), size=(8, 8)):
@@ -19,6 +19,23 @@ def test_loads_registered_sprite(tmp_path):
     surface = sprites.get("ball")
 
     assert isinstance(surface, pygame.Surface)
+
+
+def test_default_sprites_register_skin_pngs():
+    assert DEFAULT_SPRITES["skin_red_ball"].filename == "skins/red_ball.png"
+    assert DEFAULT_SPRITES["skin_pokeball"].filename == "skins/pokeball.png"
+    assert DEFAULT_SPRITES["skin_amogus"].filename == "skins/amogus.png"
+    assert DEFAULT_SPRITES["skin_ditto"].filename == "skins/ditto.png"
+    assert DEFAULT_SPRITES["skin_redball"].filename == "skins/redball.png"
+    assert DEFAULT_SPRITES["skin_patrick"].filename == "skins/patrick.png"
+    assert DEFAULT_SPRITES["skin_voltorb"].filename == "skins/voltorb.png"
+    assert DEFAULT_SPRITES["skin_stone"].filename == "skins/stone.png"
+
+
+def test_default_sprites_register_interactive_block_pngs():
+    assert DEFAULT_SPRITES["goal"].filename == "goal.png"
+    assert DEFAULT_SPRITES["spring"].filename == "spring.png"
+    assert DEFAULT_SPRITES["spike"].filename == "spike.png"
 
 
 def test_loads_direct_filename_for_compatibility(tmp_path):

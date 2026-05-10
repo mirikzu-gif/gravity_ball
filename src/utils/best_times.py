@@ -16,19 +16,45 @@ DEFAULT_PATH: Path = (
 )
 
 
+def _default_data() -> dict:
+    return {"total": None, "per_level": {}}
+
+
+def _is_number(value) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _normalize(data: dict) -> dict:
+    total = data.get("total")
+    if total is not None and not _is_number(total):
+        total = None
+
+    per_level = data.get("per_level")
+    if not isinstance(per_level, dict):
+        per_level = {}
+
+    safe_per_level = {
+        str(name): float(time)
+        for name, time in per_level.items()
+        if isinstance(name, str) and _is_number(time)
+    }
+    return {
+        "total": float(total) if total is not None else None,
+        "per_level": safe_per_level,
+    }
+
+
 def _read() -> dict:
     if not DEFAULT_PATH.exists():
-        return {"total": None, "per_level": {}}
+        return _default_data()
     try:
         with open(DEFAULT_PATH, encoding="utf-8") as f:
             data = json.load(f)
     except (OSError, json.JSONDecodeError):
-        return {"total": None, "per_level": {}}
+        return _default_data()
     if not isinstance(data, dict):
-        return {"total": None, "per_level": {}}
-    data.setdefault("total", None)
-    data.setdefault("per_level", {})
-    return data
+        return _default_data()
+    return _normalize(data)
 
 
 def _write(data: dict) -> None:

@@ -8,7 +8,7 @@ import pygame
 import pymunk
 import pytest
 
-from src.utils import best_times
+from src.utils import best_times, skins
 
 
 @pytest.fixture(autouse=True)
@@ -34,6 +34,14 @@ def _isolated_best_times(monkeypatch, tmp_path):
     """Каждый тест получает свой best_times.json в tmp_path,
     чтобы не мусорить и не зависеть от реального файла рекордов."""
     monkeypatch.setattr(best_times, "DEFAULT_PATH", tmp_path / "best_times.json")
+
+
+@pytest.fixture(autouse=True)
+def _isolated_skin_selection():
+    """Скин мяча — глобальное runtime-состояние, сбрасываем его между тестами."""
+    skins.reset_selection()
+    yield
+    skins.reset_selection()
 
 
 @pytest.fixture

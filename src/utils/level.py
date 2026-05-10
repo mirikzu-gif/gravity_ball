@@ -15,6 +15,8 @@ from typing import Dict, NamedTuple, Tuple, Union
 from ..entities.goal import Goal
 from ..entities.obstacle import Obstacle
 from ..entities.platform import Platform
+from ..entities.spike import Spike
+from ..entities.spring import Spring
 from .config import HEIGHT, WIDTH
 
 
@@ -34,6 +36,8 @@ class LevelDef:
     platforms: Tuple[Block, ...]
     obstacles: Tuple[Block, ...]
     goal: Block
+    springs: Tuple[Block, ...] = ()
+    spikes: Tuple[Block, ...] = ()
 
 
 # ---------------------------------------------------------------------------
@@ -62,11 +66,13 @@ def _level_from_dict(item: dict) -> LevelDef:
         platforms=tuple(_block_from_list(p) for p in item["platforms"]),
         obstacles=tuple(_block_from_list(o) for o in item["obstacles"]),
         goal=_block_from_list(item["goal"]),
+        springs=tuple(_block_from_list(s) for s in item.get("springs", ())),
+        spikes=tuple(_block_from_list(s) for s in item.get("spikes", ())),
     )
 
 
 def load_level_file(path: Union[str, Path]) -> LevelDef:
-    """Загружает один уровень из файла {name, ball_start, platforms, obstacles, goal}."""
+    """Загружает один уровень из JSON-файла."""
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
     if not isinstance(data, dict):
@@ -157,7 +163,9 @@ def _add_walls(space):
 
 
 def build_level(space, level_def: LevelDef):
-    """Создаёт объекты уровня в `space`. Возвращает (obstacles, platforms, goal).
+    """Создаёт объекты уровня в `space`.
+
+    Возвращает (obstacles, platforms, springs, spikes, goal).
 
     К списку obstacles добавляются стандартные стены (левая, правая, нижняя).
     """
@@ -168,6 +176,14 @@ def build_level(space, level_def: LevelDef):
         Obstacle(b.x, b.y, b.width, b.height, True, space)
         for b in level_def.obstacles
     ]
+    springs = [
+        Spring(b.x, b.y, b.width, b.height, space)
+        for b in level_def.springs
+    ]
+    spikes = [
+        Spike(b.x, b.y, b.width, b.height, space)
+        for b in level_def.spikes
+    ]
     obstacles.extend(_add_walls(space))
     goal = Goal(
         level_def.goal.x,
@@ -176,7 +192,7 @@ def build_level(space, level_def: LevelDef):
         height=level_def.goal.height,
         space=space,
     )
-    return obstacles, platforms, goal
+    return obstacles, platforms, springs, spikes, goal
 
 
 def create_level(space):

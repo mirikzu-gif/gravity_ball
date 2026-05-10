@@ -2,15 +2,21 @@
 
 Запуск:
     python tools/generate_assets.py
+    python tools/generate_assets.py --only goal spring spike
 
 Создаёт:
     assets/background.png — небо с градиентом, солнцем и редкими «звёздами»
     assets/ball.png — мяч-сфера с бликом
+    assets/skins/*.png — PNG-скины мяча
     assets/platform.png — деревянная платформа
     assets/obstacle.png — каменное препятствие
+    assets/goal.png — сияющий портал-цель
+    assets/spring.png — металлическая пружина
+    assets/spike.png — тайловая ячейка острого шипа
 
 Все ассеты можно переопределить, положив свои PNG того же имени в assets/.
 """
+import argparse
 import os
 import random
 import sys
@@ -25,6 +31,8 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 import pygame  # noqa: E402
 
 from src.utils.config import HEIGHT, WIDTH  # noqa: E402
+from tools.generate_skin_assets import FILENAMES, SKINS_DIR, make_skin_surface  # noqa: E402
+from src.utils import skins  # noqa: E402
 
 
 ASSETS_DIR = PROJECT_ROOT / "assets"
@@ -155,24 +163,181 @@ def _make_obstacle(size=(64, 64)) -> pygame.Surface:
     return surf
 
 
-def main() -> None:
+def _make_goal(size=(64, 96)) -> pygame.Surface:
+    surf = pygame.Surface(size, pygame.SRCALPHA)
+    rect = surf.get_rect()
+
+    # Warm metal frame with a bright portal center.
+    inner = rect.inflate(-14, -14)
+    for y in range(rect.height):
+        t = y / max(1, rect.height - 1)
+        color = (
+            int(255 + (194 - 255) * t),
+            int(235 + (130 - 235) * t),
+            int(82 + (24 - 82) * t),
+            255,
+        )
+        pygame.draw.line(surf, color, (0, y), (rect.width, y))
+
+    pygame.draw.rect(surf, (82, 55, 28), rect, 3, border_radius=10)
+    pygame.draw.rect(surf, (255, 250, 176), rect.inflate(-8, -8), 2, border_radius=8)
+
+    glow = pygame.Surface(inner.size, pygame.SRCALPHA)
+    glow_rect = glow.get_rect()
+    for y in range(glow_rect.height):
+        t = y / max(1, glow_rect.height - 1)
+        color = (
+            int(72 + 35 * t),
+            int(210 + 22 * t),
+            int(255 - 35 * t),
+            210,
+        )
+        pygame.draw.line(glow, color, (0, y), (glow_rect.width, y))
+    pygame.draw.ellipse(glow, (235, 255, 255, 135), glow_rect.inflate(-8, -18))
+    pygame.draw.ellipse(glow, (255, 255, 255, 70), glow_rect.inflate(-22, -42))
+    surf.blit(glow, inner)
+
+    # Checkpoint sparkle and a small central dot keep the target readable.
+    cx, cy = rect.center
+    pygame.draw.circle(surf, (255, 255, 255, 230), (cx, cy), 5)
+    for dx, dy in ((0, -34), (18, -18), (-18, 20), (14, 32)):
+        pygame.draw.line(surf, (255, 255, 220, 210), (cx + dx - 4, cy + dy), (cx + dx + 4, cy + dy), 2)
+        pygame.draw.line(surf, (255, 255, 220, 210), (cx + dx, cy + dy - 4), (cx + dx, cy + dy + 4), 2)
+
+    return surf
+
+
+def _make_spring(size=(96, 32)) -> pygame.Surface:
+    surf = pygame.Surface(size, pygame.SRCALPHA)
+    rect = surf.get_rect()
+
+    # Rubber/steel pads.
+    pygame.draw.rect(surf, (31, 43, 52), rect, border_radius=6)
+    pygame.draw.rect(surf, (94, 118, 130), rect.inflate(-4, -4), border_radius=5)
+    pygame.draw.line(surf, (186, 220, 226), (8, 5), (rect.width - 9, 5), 2)
+    pygame.draw.line(surf, (22, 30, 38), (8, rect.height - 6), (rect.width - 9, rect.height - 6), 3)
+
+    # Cyan energy under the coil.
+    glow = pygame.Surface((rect.width - 12, rect.height - 10), pygame.SRCALPHA)
+    pygame.draw.ellipse(glow, (75, 230, 255, 95), glow.get_rect())
+    surf.blit(glow, (6, 5))
+
+    left = 10
+    right = rect.width - 10
+    mid_y = rect.centery
+    amp = max(5, rect.height // 3)
+    points = []
+    for i in range(9):
+        x = left + int((right - left) * i / 8)
+        y = mid_y + (amp if i % 2 else -amp)
+        points.append((x, y))
+    pygame.draw.lines(surf, (17, 50, 62), False, points, 6)
+    pygame.draw.lines(surf, (87, 239, 255), False, points, 3)
+
+    pygame.draw.rect(surf, (19, 24, 30), rect, 3, border_radius=6)
+    return surf
+
+
+def _make_spike(size=(24, 40)) -> pygame.Surface:
+    surf = pygame.Surface(size, pygame.SRCALPHA)
+    rect = surf.get_rect()
+
+    base_h = max(7, rect.height // 3)
+    base = pygame.Rect(0, rect.height - base_h, rect.width, base_h)
+    pygame.draw.rect(surf, (82, 25, 31), base)
+    pygame.draw.line(surf, (186, 44, 53), base.topleft, base.topright, 2)
+    pygame.draw.line(surf, (45, 13, 18), base.bottomleft, base.bottomright, 3)
+
+    peak = (rect.centerx, 3)
+    points = [(1, base.top + 1), peak, (rect.right - 1, base.top + 1)]
+    pygame.draw.polygon(surf, (218, 231, 236), points)
+    pygame.draw.polygon(
+        surf,
+        (132, 146, 158),
+        [peak, (rect.right - 1, base.top + 1), (rect.centerx, base.top + 1)],
+    )
+    pygame.draw.polygon(surf, (35, 38, 45), points, 2)
+    pygame.draw.line(
+        surf,
+        (255, 255, 255),
+        (peak[0] - 2, peak[1] + 5),
+        (5, base.top - 1),
+        1,
+    )
+
+    pygame.draw.line(surf, (35, 18, 24), base.topleft, base.topright, 2)
+    return surf
+
+
+def _parse_args(argv=None):
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--only",
+        nargs="+",
+        choices=(
+            "background",
+            "ball",
+            "skins",
+            "platform",
+            "obstacle",
+            "goal",
+            "spring",
+            "spike",
+        ),
+        help="Сгенерировать только перечисленные ассеты.",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv=None) -> None:
+    args = _parse_args(argv)
+
+    def wants(name: str) -> bool:
+        return args.only is None or name in args.only
+
     pygame.init()
 
-    bg = _make_background()
-    pygame.image.save(bg, str(ASSETS_DIR / "background.png"))
-    print(f"saved {ASSETS_DIR / 'background.png'}")
+    if wants("background"):
+        bg = _make_background()
+        pygame.image.save(bg, str(ASSETS_DIR / "background.png"))
+        print(f"saved {ASSETS_DIR / 'background.png'}")
 
-    ball = _make_ball(radius=20)
-    pygame.image.save(ball, str(ASSETS_DIR / "ball.png"))
-    print(f"saved {ASSETS_DIR / 'ball.png'}")
+    if wants("ball"):
+        ball = _make_ball(radius=20)
+        pygame.image.save(ball, str(ASSETS_DIR / "ball.png"))
+        print(f"saved {ASSETS_DIR / 'ball.png'}")
 
-    platform = _make_platform()
-    pygame.image.save(platform, str(ASSETS_DIR / "platform.png"))
-    print(f"saved {ASSETS_DIR / 'platform.png'}")
+    if wants("skins"):
+        SKINS_DIR.mkdir(parents=True, exist_ok=True)
+        for skin in skins.SKINS:
+            path = SKINS_DIR / FILENAMES[skin.sprite_id]
+            pygame.image.save(make_skin_surface(skin), str(path))
+            print(f"saved {path}")
 
-    obstacle = _make_obstacle()
-    pygame.image.save(obstacle, str(ASSETS_DIR / "obstacle.png"))
-    print(f"saved {ASSETS_DIR / 'obstacle.png'}")
+    if wants("platform"):
+        platform = _make_platform()
+        pygame.image.save(platform, str(ASSETS_DIR / "platform.png"))
+        print(f"saved {ASSETS_DIR / 'platform.png'}")
+
+    if wants("obstacle"):
+        obstacle = _make_obstacle()
+        pygame.image.save(obstacle, str(ASSETS_DIR / "obstacle.png"))
+        print(f"saved {ASSETS_DIR / 'obstacle.png'}")
+
+    if wants("goal"):
+        goal = _make_goal()
+        pygame.image.save(goal, str(ASSETS_DIR / "goal.png"))
+        print(f"saved {ASSETS_DIR / 'goal.png'}")
+
+    if wants("spring"):
+        spring = _make_spring()
+        pygame.image.save(spring, str(ASSETS_DIR / "spring.png"))
+        print(f"saved {ASSETS_DIR / 'spring.png'}")
+
+    if wants("spike"):
+        spike = _make_spike()
+        pygame.image.save(spike, str(ASSETS_DIR / "spike.png"))
+        print(f"saved {ASSETS_DIR / 'spike.png'}")
 
     pygame.quit()
 

@@ -5,7 +5,7 @@ import pymunk
 from ..entities.ball import Ball
 from ..game.input_handler import InputAction, InputHandler
 from ..game.jump_controller import JumpController
-from ..game.movement import apply_movement_force
+from ..game.movement import apply_roll_torque
 from ..utils import assets, audio, best_times, fonts
 from .clouds import generate_clouds
 from ..utils.config import (
@@ -36,6 +36,7 @@ def _format_time(secs: float) -> str:
 
 
 _BOUNCE_IMPULSE_THRESHOLD = 250.0
+_SPRING_COOLDOWN = 0.22
 
 
 def _on_collision_post_solve(arbiter, space, data):
@@ -104,9 +105,16 @@ class GameScene(Scene):
             self.level_def.ball_start[1],
             space=self._space,
         )
-        self._obstacles, self._platforms, self._goal = build_level(
+        (
+            self._obstacles,
+            self._platforms,
+            self._springs,
+            self._spikes,
+            self._goal,
+        ) = build_level(
             self._space, self.level_def
         )
+        self._spring_cooldown = 0.0
 
         self._input = InputHandler()
         self._jump = JumpController(MAX_CHARGE_TIME, JUMP_IMPULSE)
@@ -120,7 +128,7 @@ class GameScene(Scene):
         self._clouds = generate_clouds()
         self._info_font = fonts.hud(18)
         self._info_text = self._info_font.render(
-            "Стрелки/пробел — играть    R — рестарт    P — пауза",
+            "←→ — вращать    Пробел — прыжок    R — рестарт    P — пауза",
             True,
             (0, 0, 0),
         )
@@ -141,15 +149,14 @@ class GameScene(Scene):
         ):
             from .pause import PauseScene
 
+            self.clear_input_state()
             self.next_scene = PauseScene(self)
             return
 
         # R — рестарт текущего уровня. Время прошлых уровней сохраняется,
         # таймер текущего уровня обнуляется.
         if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
-            self.next_scene = GameScene(
-                self.level_index, total_elapsed=self._total_elapsed_before
-            )
+            self._restart_current_level()
             return
 
         on_ground = is_on_ground(self._ball, self._space)
@@ -174,7 +181,7 @@ class GameScene(Scene):
 
         on_ground = is_on_ground(self._ball, self._space)
 
-        apply_movement_force(
+        apply_roll_torque(
             self._ball,
             self._input.get_movement(),
             on_ground,
@@ -183,6 +190,11 @@ class GameScene(Scene):
         self._jump.update(dt, on_ground=on_ground)
 
         self._space.step(dt)
+
+        self._spring_cooldown = max(0.0, self._spring_cooldown - dt)
+        self._handle_springs()
+        if self._handle_spikes():
+            return
 
         if self._goal.is_touched_by(self._ball):
             self._on_goal_reached()
@@ -204,6 +216,8 @@ class GameScene(Scene):
             screen,
             self._platforms,
             self._obstacles,
+            self._springs,
+            self._spikes,
             self._goal,
             self._ball,
             ball_render_pos,
@@ -239,6 +253,29 @@ class GameScene(Scene):
         else:
             self.next_scene = GameScene(next_index, total_elapsed=total)
 
+    def _restart_current_level(self) -> None:
+        self.next_scene = GameScene(
+            self.level_index,
+            total_elapsed=self._total_elapsed_before,
+        )
+
+    def _handle_springs(self) -> None:
+        if self._spring_cooldown > 0:
+            return
+        for spring in self._springs:
+            if spring.is_touched_by(self._ball):
+                spring.launch(self._ball)
+                audio.play_jump()
+                self._spring_cooldown = _SPRING_COOLDOWN
+                return
+
+    def _handle_spikes(self) -> bool:
+        for spike in self._spikes:
+            if spike.is_touched_by(self._ball):
+                self._restart_current_level()
+                return True
+        return False
+
     def _draw_charge_bar(self, screen: pygame.Surface, position) -> None:
         bar_width = 60
         bar_height = 8
@@ -253,3 +290,8 @@ class GameScene(Scene):
         pygame.draw.rect(
             screen, (0, 0, 0), (bar_x, bar_y, bar_width, bar_height), 2
         )
+
+    def clear_input_state(self) -> None:
+        """Сбрасывает ввод, который не должен переживать паузу или смену сцены."""
+        self._input.clear()
+        self._jump.cancel()

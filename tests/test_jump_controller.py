@@ -122,6 +122,17 @@ def test_press_then_release_in_air_no_charging(controller):
     assert controller.space_pressed is False
 
 
+def test_cancel_resets_pressed_and_charging_state(controller):
+    controller.press(on_ground=True)
+    controller.update(0.5, on_ground=True)
+
+    controller.cancel()
+
+    assert controller.state == JumpState.IDLE
+    assert controller.charge_time == 0.0
+    assert controller.space_pressed is False
+
+
 # ---------------------------------------------------------------------------
 # Накопление времени зарядки
 # ---------------------------------------------------------------------------

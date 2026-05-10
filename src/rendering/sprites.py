@@ -21,6 +21,16 @@ DEFAULT_SPRITES: Dict[str, SpriteSpec] = {
     "goal": SpriteSpec("goal.png", alpha=True),
     "obstacle": SpriteSpec("obstacle.png", alpha=True),
     "platform": SpriteSpec("platform.png", alpha=True),
+    "spring": SpriteSpec("spring.png", alpha=True),
+    "spike": SpriteSpec("spike.png", alpha=True),
+    "skin_red_ball": SpriteSpec("skins/red_ball.png", alpha=True),
+    "skin_pokeball": SpriteSpec("skins/pokeball.png", alpha=True),
+    "skin_amogus": SpriteSpec("skins/amogus.png", alpha=True),
+    "skin_ditto": SpriteSpec("skins/ditto.png", alpha=True),
+    "skin_redball": SpriteSpec("skins/redball.png", alpha=True),
+    "skin_patrick": SpriteSpec("skins/patrick.png", alpha=True),
+    "skin_voltorb": SpriteSpec("skins/voltorb.png", alpha=True),
+    "skin_stone": SpriteSpec("skins/stone.png", alpha=True),
 }
 
 

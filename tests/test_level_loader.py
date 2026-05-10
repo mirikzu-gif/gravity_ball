@@ -82,7 +82,28 @@ def test_load_levels_loads_single_level(tmp_levels_file):
     assert lvl.ball_start == (10, 20)
     assert lvl.platforms == (Block(100, 200, 50, 10),)
     assert lvl.obstacles == (Block(300, 400, 30, 30),)
+    assert lvl.springs == ()
+    assert lvl.spikes == ()
     assert lvl.goal == Block(500, 600, 40, 60)
+
+
+def test_load_levels_loads_springs_and_spikes(tmp_levels_file):
+    path = tmp_levels_file([
+        {
+            "name": "Опасный",
+            "ball_start": [10, 20],
+            "platforms": [],
+            "obstacles": [],
+            "springs": [[120, 220, 90, 24]],
+            "spikes": [[300, 420, 80, 30]],
+            "goal": [500, 600, 40, 60],
+        }
+    ])
+
+    level = load_levels(path)[0]
+
+    assert level.springs == (Block(120, 220, 90, 24),)
+    assert level.spikes == (Block(300, 420, 80, 30),)
 
 
 def test_load_levels_root_must_be_list(tmp_path):

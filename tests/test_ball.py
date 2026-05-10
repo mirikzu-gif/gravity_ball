@@ -91,6 +91,16 @@ def test_moment_of_inertia_is_positive(space):
     assert ball.body.moment > 0
 
 
+def test_apply_torque_changes_angular_velocity(space):
+    space.gravity = (0, 0)
+    ball = Ball(100, 100, space=space)
+
+    ball.apply_torque(1000)
+    space.step(1 / 60.0)
+
+    assert ball.body.angular_velocity > 0
+
+
 # ---------------------------------------------------------------------------
 # apply_impulse — мгновенное изменение скорости, не зависит от dt
 # ---------------------------------------------------------------------------
@@ -189,6 +199,34 @@ def test_draw_uses_sprite_when_available(monkeypatch, space, tmp_path):
     assert (px[0], px[1], px[2]) == (123, 45, 67)
 
 
+def test_draw_uses_selected_skin_sprite_instead_of_default_sprite(
+    monkeypatch, space, tmp_path
+):
+    from src.utils import assets, skins
+
+    monkeypatch.setattr(assets, "ASSETS_DIR", tmp_path)
+    assets.reset_cache()
+
+    sprite_surf = pygame.Surface((40, 40), pygame.SRCALPHA)
+    sprite_surf.fill((123, 45, 67))
+    pygame.image.save(sprite_surf, str(tmp_path / "ball.png"))
+
+    skin_dir = tmp_path / "skins"
+    skin_dir.mkdir()
+    skin_surf = pygame.Surface((40, 40), pygame.SRCALPHA)
+    skin_surf.fill((245, 245, 245))
+    pygame.image.save(skin_surf, str(skin_dir / "pokeball.png"))
+
+    skins.select_skin(1)
+    target = pygame.Surface((200, 200))
+    target.fill((0, 0, 0))
+    ball = Ball(100, 100, space=space)
+    ball.draw(target)
+
+    px = target.get_at((100, 100))
+    assert (px[0], px[1], px[2]) == skins.get_selected_skin().fill
+
+
 def test_draw_accepts_override_position(space):
     """Можно нарисовать мяч в произвольной позиции для интерполяции."""
     pygame_module = pytest.importorskip("pygame")
@@ -205,3 +243,12 @@ def test_draw_accepts_vec2d_position(space):
     surface = pygame_module.Surface((200, 200))
     ball = Ball(100, 100, space=space)
     ball.draw(surface, position=pymunk.Vec2d(60, 80))
+
+
+def test_draw_accepts_rotated_ball(space):
+    pygame_module = pytest.importorskip("pygame")
+    pygame_module.init()
+    surface = pygame_module.Surface((200, 200))
+    ball = Ball(100, 100, space=space)
+    ball.body.angle = 0.75
+    ball.draw(surface)

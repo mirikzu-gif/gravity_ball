@@ -1,11 +1,13 @@
 """
 Класс мяча
 """
+import math
+
 import pygame
 import pymunk
 
-from ..utils import assets
-from ..utils.config import BLACK, MATERIALS, RED
+from ..utils import assets, skins
+from ..utils.config import MATERIALS
 
 
 class Ball:
@@ -32,6 +34,10 @@ class Ball:
         """Применяет силу к мячу (действует один шаг space.step)."""
         self.body.apply_force_at_world_point(force, self.body.position)
 
+    def apply_torque(self, torque):
+        """Применяет крутящий момент к мячу на один шаг space.step."""
+        self.body.torque += torque
+
     def apply_impulse(self, impulse):
         """Применяет мгновенный импульс — изменяет velocity сразу, не зависит от dt."""
         self.body.apply_impulse_at_world_point(impulse, self.body.position)
@@ -47,14 +53,59 @@ class Ball:
         if sprites is None:
             sprites = assets.get_sprite_manager()
 
+        skin = skins.get_selected_skin()
         sprite = sprites.get_scaled(
-            "ball",
+            skin.sprite_id,
             (self.radius * 2, self.radius * 2),
         )
+        if sprite is None and skins.get_selected_index() == skins.DEFAULT_SKIN_INDEX:
+            sprite = sprites.get_scaled(
+                "ball",
+                (self.radius * 2, self.radius * 2),
+            )
+
         if sprite is not None:
-            rect = sprite.get_rect(center=(int(position[0]), int(position[1])))
-            screen.blit(sprite, rect)
+            rotated = self._rotate_surface(sprite)
+            rect = rotated.get_rect(center=(int(position[0]), int(position[1])))
+            screen.blit(rotated, rect)
             return
-        pos = int(position[0]), int(position[1])
-        pygame.draw.circle(screen, RED, pos, self.radius)
-        pygame.draw.circle(screen, BLACK, pos, self.radius, 2)
+
+        sprite = self._make_skin_surface(skin)
+        rotated = self._rotate_surface(sprite)
+        rect = rotated.get_rect(center=(int(position[0]), int(position[1])))
+        screen.blit(rotated, rect)
+
+    def _rotate_surface(self, surface):
+        if abs(self.body.angle) < 0.001:
+            return surface
+        return pygame.transform.rotate(surface, -math.degrees(self.body.angle))
+
+    def _make_skin_surface(self, skin):
+        diameter = self.radius * 2
+        surface = pygame.Surface((diameter + 4, diameter + 4), pygame.SRCALPHA)
+        center = (surface.get_width() // 2, surface.get_height() // 2)
+        radius = self.radius
+
+        shade_pos = (center[0] - radius // 5, center[1] + radius // 5)
+        pygame.draw.circle(surface, skin.shade, center, radius)
+        pygame.draw.circle(surface, skin.fill, shade_pos, max(2, radius - 4))
+
+        highlight_pos = (
+            center[0] - radius // 3,
+            center[1] - radius // 3,
+        )
+        pygame.draw.circle(
+            surface,
+            skin.highlight,
+            highlight_pos,
+            max(2, radius // 3),
+        )
+        pygame.draw.line(
+            surface,
+            skin.outline,
+            (center[0] + radius // 3, center[1]),
+            (center[0] + radius - 5, center[1]),
+            3,
+        )
+        pygame.draw.circle(surface, skin.outline, center, radius, 2)
+        return surface

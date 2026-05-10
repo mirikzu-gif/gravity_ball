@@ -87,6 +87,28 @@ def test_default_ball_loads():
     assert surf is not None
 
 
+@pytest.mark.parametrize(
+    "sprite_id,path",
+    [
+        ("skin_red_ball", "skins/red_ball.png"),
+        ("skin_pokeball", "skins/pokeball.png"),
+        ("skin_amogus", "skins/amogus.png"),
+        ("skin_ditto", "skins/ditto.png"),
+        ("skin_redball", "skins/redball.png"),
+        ("skin_patrick", "skins/patrick.png"),
+        ("skin_voltorb", "skins/voltorb.png"),
+        ("skin_stone", "skins/stone.png"),
+    ],
+)
+def test_default_skin_assets_load(sprite_id, path):
+    project_assets = Path(__file__).resolve().parent.parent / "assets"
+    if not (project_assets / path).exists():
+        pytest.skip(f"assets/{path} отсутствует — запусти tools/generate_assets.py")
+    assets.reset_cache()
+    surf = assets.get_sprite_manager().get(sprite_id)
+    assert surf is not None
+
+
 def test_default_platform_loads():
     project_assets = Path(__file__).resolve().parent.parent / "assets"
     if not (project_assets / "platform.png").exists():
@@ -102,6 +124,20 @@ def test_default_obstacle_loads():
         pytest.skip("assets/obstacle.png отсутствует — запусти tools/generate_assets.py")
     assets.reset_cache()
     surf = assets.get_image("obstacle.png")
+    assert surf is not None
+
+
+@pytest.mark.parametrize("sprite_id,path", [
+    ("goal", "goal.png"),
+    ("spring", "spring.png"),
+    ("spike", "spike.png"),
+])
+def test_default_interactive_block_assets_load(sprite_id, path):
+    project_assets = Path(__file__).resolve().parent.parent / "assets"
+    if not (project_assets / path).exists():
+        pytest.skip(f"assets/{path} отсутствует — запусти tools/generate_assets.py")
+    assets.reset_cache()
+    surf = assets.get_sprite_manager().get(sprite_id)
     assert surf is not None
 
 

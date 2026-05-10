@@ -17,16 +17,29 @@ def test_world_renderer_draws_objects_in_order():
     sprites = object()
     platform = _Drawable("platform", calls)
     obstacle = _Drawable("obstacle", calls)
+    spring = _Drawable("spring", calls)
+    spike = _Drawable("spike", calls)
     goal = _Drawable("goal", calls)
     ball = _Drawable("ball", calls)
     ball_position = (10, 20)
 
     renderer = WorldRenderer(sprites)
-    renderer.draw(screen, [platform], [obstacle], goal, ball, ball_position)
+    renderer.draw(
+        screen,
+        [platform],
+        [obstacle],
+        [spring],
+        [spike],
+        goal,
+        ball,
+        ball_position,
+    )
 
     assert [call[0] for call in calls] == [
         "platform",
+        "spring",
         "obstacle",
+        "spike",
         "goal",
         "ball",
     ]
@@ -34,7 +47,9 @@ def test_world_renderer_draws_objects_in_order():
     assert calls[0][2] == {"sprites": sprites}
     assert calls[1][2] == {"sprites": sprites}
     assert calls[2][2] == {"sprites": sprites}
-    assert calls[3][2] == {
+    assert calls[3][2] == {"sprites": sprites}
+    assert calls[4][2] == {"sprites": sprites}
+    assert calls[5][2] == {
         "position": ball_position,
         "sprites": sprites,
     }

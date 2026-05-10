@@ -36,6 +36,8 @@ class PauseScene(Scene):
         if event.type != pygame.KEYDOWN:
             return
         if event.key in (pygame.K_p, pygame.K_ESCAPE, pygame.K_RETURN, pygame.K_SPACE):
+            if hasattr(self._game, "clear_input_state"):
+                self._game.clear_input_state()
             # resume — возвращаемся в ту же GameScene
             self.next_scene = self._game
         elif event.key == pygame.K_m:

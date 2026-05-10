@@ -52,3 +52,7 @@ class InputHandler:
         if pygame.K_DOWN in self._held_keys:
             dy += 1.0
         return (dx, dy)
+
+    def clear(self) -> None:
+        """Сбрасывает состояние зажатых клавиш при смене контекста ввода."""
+        self._held_keys.clear()

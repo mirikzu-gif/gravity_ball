@@ -2,6 +2,8 @@
 import pygame
 import pytest
 
+from src.entities.spike import Spike
+from src.entities.spring import Spring
 from src.game.jump_controller import JumpState
 from src.scenes.play import JUMP_IMPULSE, GameScene
 from src.scenes.win import WinScene
@@ -14,12 +16,35 @@ def _ev(type_, **attrs):
 
 
 def _put_ball_on_first_level_platform(scene):
-    """Кладёт мяч на широкую платформу 1-го уровня (500, 620, 800, 20).
+    """Кладёт мяч на свободное место одной из платформ текущего уровня."""
+    radius = scene._ball.radius
+    for platform in scene.level_def.platforms:
+        top = platform.y - platform.height / 2
+        y = top - radius + 5
+        candidates = (
+            platform.x,
+            platform.x - platform.width / 4,
+            platform.x + platform.width / 4,
+        )
+        for x in candidates:
+            blocked = False
+            for obstacle in scene.level_def.obstacles:
+                left = obstacle.x - obstacle.width / 2 - radius
+                right = obstacle.x + obstacle.width / 2 + radius
+                upper = obstacle.y - obstacle.height / 2 - radius
+                lower = obstacle.y + obstacle.height / 2 + radius
+                if left <= x <= right and upper <= y <= lower:
+                    blocked = True
+                    break
+            if not blocked:
+                scene._ball.body.position = (x, y)
+                scene._ball.body.velocity = (0, 0)
+                return
+    raise AssertionError("нет свободной платформы для теста")
 
-    Платформа top y=610. Мяч center y=595 → нижний probe (radius+1=21)
-    в y=616 — внутри платформы [610, 630].
-    """
-    scene._ball.body.position = (500, 595)
+
+def _put_ball_in_air(scene):
+    scene._ball.body.position = (100, 100)
     scene._ball.body.velocity = (0, 0)
 
 
@@ -34,11 +59,14 @@ def test_init_creates_world_with_objects():
     assert scene._ball is not None
     assert scene._goal is not None
     assert len(scene._platforms) >= 1
+    assert scene._springs is not None
+    assert scene._spikes is not None
     assert scene._ball.shape in scene._space.shapes
 
 
 def test_fixed_update_advances_physics():
     scene = GameScene()
+    _put_ball_in_air(scene)
     initial_y = scene._ball.body.position.y
 
     for _ in range(60):  # 1 секунда симуляции
@@ -141,6 +169,33 @@ def test_no_goal_touch_keeps_scene():
     scene = GameScene()
     scene.fixed_update(FIXED_DT)
     assert scene.next_scene is None
+
+
+def test_spring_touch_launches_ball_upward():
+    scene = GameScene()
+    scene._ball.body.position = (300, 300)
+    scene._ball.body.velocity = (0, 500)
+    scene._springs = [Spring(300, 300, 100, 30, scene._space, impulse=3000)]
+    scene._spikes = []
+
+    scene.fixed_update(FIXED_DT)
+
+    assert scene._ball.body.velocity.y < 0
+    assert scene._spring_cooldown > 0
+
+
+def test_spike_touch_restarts_current_level():
+    scene = GameScene(level_index=0, total_elapsed=12.0)
+    scene._ball.body.position = (300, 300)
+    scene._ball.body.velocity = (0, 0)
+    scene._springs = []
+    scene._spikes = [Spike(300, 300, 100, 30, scene._space)]
+
+    scene.fixed_update(FIXED_DT)
+
+    assert isinstance(scene.next_scene, GameScene)
+    assert scene.next_scene.level_index == 0
+    assert scene.next_scene._total_elapsed_before == 12.0
 
 
 def test_invalid_level_index_raises():

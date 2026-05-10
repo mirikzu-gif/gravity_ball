@@ -1,14 +1,90 @@
-"""Тесты apply_movement_force — гейтинг по on_ground."""
+"""Тесты вращательного управления мячом."""
 import pytest
 
 from src.entities.ball import Ball
-from src.game.movement import apply_movement_force
+from src.game.movement import apply_movement_force, apply_roll_torque
 
 
 MAG = 800.0
 
 
-def test_force_applied_on_ground(space):
+def test_roll_torque_applied_on_ground(space):
+    space.gravity = (0, 0)
+    ball = Ball(100, 100, space=space)
+
+    applied = apply_roll_torque(ball, (1.0, 0.0), on_ground=True, magnitude=MAG)
+    space.step(1 / 60.0)
+
+    assert applied is True
+    assert ball.body.angular_velocity > 0
+
+
+def test_roll_torque_left_and_right_have_opposite_signs(space):
+    space.gravity = (0, 0)
+    right = Ball(100, 100, space=space)
+    left = Ball(150, 100, space=space)
+
+    apply_roll_torque(right, (1.0, 0.0), on_ground=True, magnitude=MAG)
+    apply_roll_torque(left, (-1.0, 0.0), on_ground=True, magnitude=MAG)
+    space.step(1 / 60.0)
+
+    assert right.body.angular_velocity > 0
+    assert left.body.angular_velocity < 0
+
+
+def test_no_torque_in_air(space):
+    space.gravity = (0, 0)
+    ball = Ball(100, 100, space=space)
+    initial_angular_velocity = ball.body.angular_velocity
+
+    applied = apply_roll_torque(ball, (1.0, 0.0), on_ground=False, magnitude=MAG)
+    space.step(1 / 60.0)
+
+    assert applied is False
+    assert ball.body.angular_velocity == pytest.approx(initial_angular_velocity)
+
+
+def test_zero_horizontal_movement_is_noop(space):
+    space.gravity = (0, 0)
+    ball = Ball(100, 100, space=space)
+
+    applied = apply_roll_torque(ball, (0.0, 0.0), on_ground=True, magnitude=MAG)
+    vertical = apply_roll_torque(ball, (0.0, -1.0), on_ground=True, magnitude=MAG)
+    space.step(1 / 60.0)
+
+    assert applied is False
+    assert vertical is False
+    assert ball.body.angular_velocity == pytest.approx(0)
+
+
+def test_roll_torque_does_not_directly_push_ball(space):
+    space.gravity = (0, 0)
+    ball = Ball(100, 100, space=space)
+
+    apply_roll_torque(ball, (1.0, 0.0), on_ground=True, magnitude=MAG)
+    space.step(1 / 60.0)
+
+    assert ball.body.velocity.x == pytest.approx(0)
+    assert ball.body.velocity.y == pytest.approx(0)
+
+
+def test_inertia_preserved_in_air(space):
+    """В воздухе стрелки не могут ни ускорить, ни затормозить мяч."""
+    space.gravity = (0, 0)
+    ball = Ball(100, 100, space=space)
+    ball.apply_impulse((100, 0))
+    initial_vx = ball.body.velocity.x
+    initial_av = ball.body.angular_velocity
+
+    apply_roll_torque(ball, (1.0, 0.0), on_ground=False, magnitude=MAG)
+    apply_roll_torque(ball, (-1.0, 0.0), on_ground=False, magnitude=MAG)
+    space.step(1 / 60.0)
+
+    assert ball.body.velocity.x == pytest.approx(initial_vx)
+    assert ball.body.angular_velocity == pytest.approx(initial_av)
+
+
+def test_legacy_helper_name_uses_roll_torque(space):
     space.gravity = (0, 0)
     ball = Ball(100, 100, space=space)
 
@@ -16,79 +92,4 @@ def test_force_applied_on_ground(space):
     space.step(1 / 60.0)
 
     assert applied is True
-    assert ball.body.velocity.x > 0
-
-
-def test_no_force_in_air(space):
-    """Главное поведение фикса: в воздухе стрелки не двигают мяч."""
-    space.gravity = (0, 0)
-    ball = Ball(100, 100, space=space)
-    initial_vx = ball.body.velocity.x
-
-    applied = apply_movement_force(ball, (1.0, 0.0), on_ground=False, magnitude=MAG)
-    space.step(1 / 60.0)
-
-    assert applied is False
-    assert ball.body.velocity.x == pytest.approx(initial_vx)
-
-
-def test_zero_movement_is_noop(space):
-    space.gravity = (0, 0)
-    ball = Ball(100, 100, space=space)
-
-    applied = apply_movement_force(ball, (0.0, 0.0), on_ground=True, magnitude=MAG)
-    space.step(1 / 60.0)
-
-    assert applied is False
-    assert ball.body.velocity.x == pytest.approx(0)
-    assert ball.body.velocity.y == pytest.approx(0)
-
-
-@pytest.mark.parametrize(
-    "movement,axis,direction",
-    [
-        ((1.0, 0.0), "x", 1),
-        ((-1.0, 0.0), "x", -1),
-        ((0.0, 1.0), "y", 1),
-        ((0.0, -1.0), "y", -1),
-    ],
-)
-def test_force_direction_when_on_ground(space, movement, axis, direction):
-    space.gravity = (0, 0)
-    ball = Ball(100, 100, space=space)
-
-    apply_movement_force(ball, movement, on_ground=True, magnitude=MAG)
-    space.step(1 / 60.0)
-
-    velocity_component = getattr(ball.body.velocity, axis)
-    assert velocity_component * direction > 0
-
-
-def test_inertia_preserved_in_air(space):
-    """Если мяч уже движется и оторвался — он продолжает лететь по инерции,
-    стрелки в воздухе не могут его ни ускорить, ни затормозить."""
-    space.gravity = (0, 0)
-    ball = Ball(100, 100, space=space)
-    ball.apply_impulse((100, 0))  # даём начальный импульс
-    initial_vx = ball.body.velocity.x
-
-    # пытаемся ускорить в воздухе
-    apply_movement_force(ball, (1.0, 0.0), on_ground=False, magnitude=MAG)
-    # пытаемся затормозить в воздухе
-    apply_movement_force(ball, (-1.0, 0.0), on_ground=False, magnitude=MAG)
-    space.step(1 / 60.0)
-
-    # без сил velocity не должна вырасти, только AIR_RESISTANCE из custom_velocity_func
-    # должна была чуть уменьшить её — то есть |vx| ≤ |initial_vx|
-    assert abs(ball.body.velocity.x) <= abs(initial_vx)
-
-
-def test_diagonal_movement_on_ground(space):
-    space.gravity = (0, 0)
-    ball = Ball(100, 100, space=space)
-
-    apply_movement_force(ball, (1.0, -1.0), on_ground=True, magnitude=MAG)
-    space.step(1 / 60.0)
-
-    assert ball.body.velocity.x > 0
-    assert ball.body.velocity.y < 0
+    assert ball.body.angular_velocity > 0

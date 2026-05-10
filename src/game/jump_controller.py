@@ -111,6 +111,11 @@ class JumpController:
                 self._charge_time + dt, self.max_charge_time
             )
 
+    def cancel(self) -> None:
+        """Отменяет удерживаемый прыжок без создания JumpEvent."""
+        self._space_pressed = False
+        self._reset()
+
     # ------------------------------------------------------------------
     # Внутренние помощники
     # ------------------------------------------------------------------

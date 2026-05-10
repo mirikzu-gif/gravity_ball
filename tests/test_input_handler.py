@@ -145,3 +145,13 @@ def test_releasing_one_arrow_keeps_other(handler):
 def test_space_does_not_affect_movement(handler):
     handler.process_event(_ev(pygame.KEYDOWN, pygame.K_SPACE))
     assert handler.get_movement() == (0.0, 0.0)
+
+
+def test_clear_resets_held_keys(handler):
+    handler.process_event(_ev(pygame.KEYDOWN, pygame.K_LEFT))
+    handler.process_event(_ev(pygame.KEYDOWN, pygame.K_SPACE))
+
+    handler.clear()
+
+    assert handler.held_keys == frozenset()
+    assert handler.get_movement() == (0.0, 0.0)

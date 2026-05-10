@@ -3,7 +3,7 @@ import pygame
 import pytest
 
 from src.scenes.level_preview import make_preview
-from src.utils.level import LEVELS
+from src.utils.level import LEVELS, Block, LevelDef
 
 
 @pytest.mark.parametrize("level_index", range(len(LEVELS)))
@@ -22,10 +22,69 @@ def test_preview_default_size():
 
 
 def test_preview_handles_level_with_no_obstacles():
-    """Уровень «Старт» не имеет obstacles — превью всё равно должно отрисоваться."""
-    start = LEVELS[0]
-    assert len(start.obstacles) == 0
-    make_preview(start)  # не должно падать
+    """Превью должно отрисовываться для уровня без obstacles."""
+    level = LevelDef(
+        name="Без препятствий",
+        ball_start=(120, 100),
+        platforms=(Block(500, 620, 800, 20),),
+        obstacles=(),
+        goal=Block(820, 560, 40, 60),
+    )
+
+    make_preview(level)  # не должно падать
+
+
+def test_preview_handles_springs_and_spikes():
+    level = LevelDef(
+        name="Блоки",
+        ball_start=(120, 100),
+        platforms=(Block(500, 620, 800, 20),),
+        obstacles=(),
+        goal=Block(820, 560, 40, 60),
+        springs=(Block(300, 500, 90, 24),),
+        spikes=(Block(520, 590, 90, 34),),
+    )
+
+    make_preview(level)
+
+
+def test_preview_uses_spring_and_spike_sprites():
+    sprites = _Sprites()
+    level = LevelDef(
+        name="Блоки",
+        ball_start=(120, 100),
+        platforms=(),
+        obstacles=(),
+        goal=Block(820, 560, 40, 60),
+        springs=(Block(300, 500, 90, 24),),
+        spikes=(Block(520, 590, 90, 34),),
+    )
+
+    make_preview(level, size=(500, 350), sprites=sprites)
+
+    scaled_ids = [call[0] for call in sprites.scaled_calls]
+    assert "spring" in scaled_ids
+    assert "spike" in scaled_ids
+
+
+def test_preview_tiles_spike_sprite_without_width_stretching():
+    sprites = _Sprites()
+    level = LevelDef(
+        name="Блоки",
+        ball_start=(120, 100),
+        platforms=(),
+        obstacles=(),
+        goal=Block(820, 560, 40, 60),
+        spikes=(Block(500, 560, 240, 40),),
+    )
+
+    make_preview(level, size=(1000, 700), sprites=sprites)
+
+    spike_sizes = [
+        size for sprite_id, size in sprites.scaled_calls if sprite_id == "spike"
+    ]
+    assert (24, 40) in spike_sizes
+    assert (240, 40) not in spike_sizes
 
 
 def test_preview_renders_distinct_colors_for_known_layout():

@@ -80,6 +80,37 @@ def test_non_dict_file_returns_defaults():
     assert best_times.best_total() is None
 
 
+def test_wrong_schema_file_returns_defaults():
+    best_times.DEFAULT_PATH.write_text(
+        json.dumps({"total": "fast", "per_level": None}),
+        encoding="utf-8",
+    )
+
+    assert best_times.best_total() is None
+    assert best_times.best_for_level("X") is None
+
+
+def test_wrong_level_entries_are_ignored():
+    best_times.DEFAULT_PATH.write_text(
+        json.dumps(
+            {
+                "total": 12,
+                "per_level": {
+                    "Good": 3,
+                    "Bad": "soon",
+                    42: 9,
+                    "Also bad": True,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert best_times.best_total() == 12.0
+    assert best_times.best_for_level("Good") == 3.0
+    assert best_times.best_for_level("Bad") is None
+
+
 def test_io_error_does_not_crash(monkeypatch, tmp_path):
     """Если запись невозможна — record_* не должна валить процесс."""
     bad = tmp_path / "ro" / "best.json"

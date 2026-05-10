@@ -10,6 +10,33 @@ def _ev(type_, **attrs):
     return pygame.event.Event(type_, **attrs)
 
 
+def _put_ball_on_level_platform(scene):
+    radius = scene._ball.radius
+    for platform in scene.level_def.platforms:
+        top = platform.y - platform.height / 2
+        y = top - radius + 5
+        candidates = (
+            platform.x,
+            platform.x - platform.width / 4,
+            platform.x + platform.width / 4,
+        )
+        for x in candidates:
+            blocked = False
+            for obstacle in scene.level_def.obstacles:
+                left = obstacle.x - obstacle.width / 2 - radius
+                right = obstacle.x + obstacle.width / 2 + radius
+                upper = obstacle.y - obstacle.height / 2 - radius
+                lower = obstacle.y + obstacle.height / 2 + radius
+                if left <= x <= right and upper <= y <= lower:
+                    blocked = True
+                    break
+            if not blocked:
+                scene._ball.body.position = (x, y)
+                scene._ball.body.velocity = (0, 0)
+                return
+    raise AssertionError("нет свободной платформы для теста")
+
+
 def test_pause_keeps_game_reference():
     game = GameScene()
     pause = PauseScene(game)
@@ -98,3 +125,39 @@ def test_game_p_does_not_affect_jump_controller():
     scene.handle_event(_ev(pygame.KEYDOWN, key=pygame.K_p))
 
     assert scene._jump.state == JumpState.IDLE  # пробел был бы CHARGING — P нет
+
+
+def test_game_pause_clears_held_movement_keys():
+    scene = GameScene()
+    scene.handle_event(_ev(pygame.KEYDOWN, key=pygame.K_RIGHT))
+    assert scene._input.get_movement() == (1.0, 0.0)
+
+    scene.handle_event(_ev(pygame.KEYDOWN, key=pygame.K_p))
+
+    assert scene._input.held_keys == frozenset()
+    assert scene._input.get_movement() == (0.0, 0.0)
+
+
+def test_game_pause_cancels_charged_jump():
+    from src.game.jump_controller import JumpState
+
+    scene = GameScene()
+    _put_ball_on_level_platform(scene)
+    scene.handle_event(_ev(pygame.KEYDOWN, key=pygame.K_SPACE))
+    assert scene._jump.state == JumpState.CHARGING
+
+    scene.handle_event(_ev(pygame.KEYDOWN, key=pygame.K_p))
+
+    assert scene._jump.state == JumpState.IDLE
+    assert scene._jump.space_pressed is False
+
+
+def test_resume_clears_game_input_state():
+    game = GameScene()
+    game.handle_event(_ev(pygame.KEYDOWN, key=pygame.K_RIGHT))
+    pause = PauseScene(game)
+
+    pause.handle_event(_ev(pygame.KEYDOWN, key=pygame.K_p))
+
+    assert pause.next_scene is game
+    assert game._input.held_keys == frozenset()
