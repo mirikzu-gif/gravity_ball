@@ -13,7 +13,8 @@ class MenuScene(Scene):
 
     LEVELS_INDEX = 0
     SKINS_INDEX = 1
-    BUTTONS = ("Уровни", "Скины")
+    EDITOR_INDEX = 2
+    BUTTONS = ("Уровни", "Скины", "Редактор")
     BUTTON_WIDTH = 300
     BUTTON_HEIGHT = 64
     BUTTON_GAP = 18
@@ -76,10 +77,14 @@ class MenuScene(Scene):
             from .level_select import LevelSelectScene
 
             self.next_scene = LevelSelectScene()
-        else:
+        elif self.selected == self.SKINS_INDEX:
             from .skin_select import SkinSelectScene
 
             self.next_scene = SkinSelectScene()
+        else:
+            from .level_editor import LevelEditorScene
+
+            self.next_scene = LevelEditorScene()
 
     def _button_rect(self, index: int) -> pygame.Rect:
         total_height = len(self.BUTTONS) * self.BUTTON_HEIGHT

@@ -262,6 +262,7 @@ def test_total_elapsed_carries_to_next_level():
     assert scene.next_scene._total_elapsed_before == pytest.approx(
         elapsed_before_goal + FIXED_DT
     )
+    assert scene.next_scene._campaign_run is True
 
 
 def test_total_elapsed_carries_to_win_scene():
@@ -273,6 +274,39 @@ def test_total_elapsed_carries_to_win_scene():
 
     assert isinstance(scene.next_scene, WinScene)
     assert scene.next_scene.total_time == pytest.approx(5.0 + FIXED_DT)
+    assert scene.next_scene.record_total is False
+
+
+def test_direct_last_level_finish_does_not_record_total_best():
+    from src.utils import best_times
+
+    last_index = len(LEVELS) - 1
+    scene = GameScene(level_index=last_index)
+    goal = scene.level_def.goal
+    scene._ball.body.position = (goal.x, goal.y)
+    scene.fixed_update(FIXED_DT)
+
+    assert isinstance(scene.next_scene, WinScene)
+    assert scene.next_scene.record_total is False
+    assert best_times.best_total() is None
+
+
+def test_campaign_last_level_finish_records_total_best():
+    from src.utils import best_times
+
+    last_index = len(LEVELS) - 1
+    scene = GameScene(
+        level_index=last_index,
+        total_elapsed=5.0,
+        campaign_run=True,
+    )
+    goal = scene.level_def.goal
+    scene._ball.body.position = (goal.x, goal.y)
+    scene.fixed_update(FIXED_DT)
+
+    assert isinstance(scene.next_scene, WinScene)
+    assert scene.next_scene.record_total is True
+    assert best_times.best_total() == pytest.approx(5.0 + FIXED_DT)
 
 
 def test_goal_reached_records_level_best_time():
@@ -294,7 +328,7 @@ def test_goal_reached_records_level_best_time():
 
 
 def test_r_resets_level_timer_but_keeps_total():
-    scene = GameScene(level_index=0, total_elapsed=10.0)
+    scene = GameScene(level_index=0, total_elapsed=10.0, campaign_run=True)
     for _ in range(60):
         scene.fixed_update(FIXED_DT)
 
@@ -304,6 +338,7 @@ def test_r_resets_level_timer_but_keeps_total():
     assert isinstance(new_scene, GameScene)
     assert new_scene._elapsed == 0.0
     assert new_scene._total_elapsed_before == 10.0  # время прошлых уровней цело
+    assert new_scene._campaign_run is True
 
 
 def test_scene_uses_level_def_ball_start():

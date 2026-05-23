@@ -29,7 +29,8 @@ BALL_RADIUS = 20
 MIN_BLOCK_SIZE = 10
 
 COLOR_BG = (220, 232, 244)
-COLOR_GRID = (195, 210, 225)
+COLOR_GRID_MINOR = (207, 220, 232)
+COLOR_GRID = (185, 202, 218)
 COLOR_PANEL = (34, 38, 46)
 COLOR_PANEL_TEXT = (235, 238, 242)
 COLOR_MUTED = (170, 178, 190)
@@ -133,6 +134,17 @@ def block_rect(block: Block) -> pygame.Rect:
         int(width),
         int(height),
     )
+
+
+def draw_editor_grid(screen: pygame.Surface, field: pygame.Rect) -> None:
+    """Draws the visible editor grid at the same 10px step used by snapping."""
+    major_step = GRID * 5
+    for x in range(field.left, field.right + 1, GRID):
+        color = COLOR_GRID if x % major_step == 0 else COLOR_GRID_MINOR
+        pygame.draw.line(screen, color, (x, field.top), (x, field.bottom), 1)
+    for y in range(field.top, field.bottom + 1, GRID):
+        color = COLOR_GRID if y % major_step == 0 else COLOR_GRID_MINOR
+        pygame.draw.line(screen, color, (field.left, y), (field.right, y), 1)
 
 
 def clamp_point(point: List[int]) -> None:
@@ -462,10 +474,7 @@ class LevelEditor:
     def _draw_world(self, screen: pygame.Surface) -> None:
         field = pygame.Rect(0, 0, WIDTH, HEIGHT)
         pygame.draw.rect(screen, COLOR_BG, field)
-        for x in range(0, WIDTH + 1, GRID * 5):
-            pygame.draw.line(screen, COLOR_GRID, (x, 0), (x, HEIGHT), 1)
-        for y in range(0, HEIGHT + 1, GRID * 5):
-            pygame.draw.line(screen, COLOR_GRID, (0, y), (WIDTH, y), 1)
+        draw_editor_grid(screen, field)
 
         for i, block in enumerate(self.draft.platforms):
             self._draw_block(

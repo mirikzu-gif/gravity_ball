@@ -1,4 +1,6 @@
 """GameScene — основной геймплей."""
+from typing import Optional
+
 import pygame
 import pymunk
 
@@ -19,7 +21,7 @@ from ..utils.config import (
     MOVE_FORCE,
     WIDTH,
 )
-from ..utils.level import LEVELS, build_level
+from ..utils.level import LEVELS, LevelDef, build_level
 from ..utils.physics import is_on_ground
 from ..rendering.world_renderer import WorldRenderer
 from .base import Scene
@@ -79,15 +81,39 @@ class GameScene(Scene):
     """Игровая сцена: физика, ввод, цель уровня."""
 
     def __init__(
-        self, level_index: int = 0, total_elapsed: float = 0.0
+        self,
+        level_index: int = 0,
+        total_elapsed: float = 0.0,
+        campaign_run: Optional[bool] = None,
+        level_def: Optional[LevelDef] = None,
+        return_scene: Optional[Scene] = None,
+        record_progress: bool = True,
     ) -> None:
         super().__init__()
-        if not 0 <= level_index < len(LEVELS):
-            raise ValueError(
-                f"level_index {level_index} вне диапазона [0, {len(LEVELS)})"
+        self._return_scene = return_scene
+        self._record_progress = record_progress
+        self._campaign_mode = level_def is None
+
+        if self._campaign_mode:
+            if not 0 <= level_index < len(LEVELS):
+                raise ValueError(
+                    f"level_index {level_index} вне диапазона [0, {len(LEVELS)})"
+                )
+            self.level_index = level_index
+            self.level_def = LEVELS[level_index]
+            self._level_count = len(LEVELS)
+        else:
+            self.level_index = level_index
+            self.level_def = level_def
+            self._level_count = 1
+
+        if campaign_run is None:
+            campaign_run = (
+                self._campaign_mode
+                and level_index == 0
+                and total_elapsed == 0.0
             )
-        self.level_index = level_index
-        self.level_def = LEVELS[level_index]
+        self._campaign_run = campaign_run
         audio.play_background()
         # Время с прошлых уровней + текущее на этом уровне.
         self._total_elapsed_before = total_elapsed
@@ -132,11 +158,14 @@ class GameScene(Scene):
             True,
             (0, 0, 0),
         )
-        self._level_label = self._info_font.render(
-            f"Уровень {level_index + 1}/{len(LEVELS)} — {self.level_def.name}",
-            True,
-            (0, 0, 0),
-        )
+        if self._campaign_mode:
+            level_text = (
+                f"Уровень {level_index + 1}/{self._level_count} — "
+                f"{self.level_def.name}"
+            )
+        else:
+            level_text = f"Тест уровня — {self.level_def.name}"
+        self._level_label = self._info_font.render(level_text, True, (0, 0, 0))
 
     # ------------------------------------------------------------------
     # Scene API
@@ -243,21 +272,45 @@ class GameScene(Scene):
     # ------------------------------------------------------------------
     def _on_goal_reached(self) -> None:
         audio.play_goal()
-        best_times.record_level(self.level_def.name, self._elapsed)
+        if self._record_progress:
+            best_times.record_level(self.level_def.name, self._elapsed)
         total = self._total_elapsed_before + self._elapsed
+        if self._return_scene is not None:
+            self.next_scene = self._return_scene
+            return
         next_index = self.level_index + 1
-        if next_index >= len(LEVELS):
+        if next_index >= self._level_count:
             from .win import WinScene
 
-            self.next_scene = WinScene(total_time=total)
+            self.next_scene = WinScene(
+                total_time=total,
+                record_total=self._campaign_run,
+            )
         else:
-            self.next_scene = GameScene(next_index, total_elapsed=total)
+            self.next_scene = GameScene(
+                next_index,
+                total_elapsed=total,
+                campaign_run=self._campaign_run,
+                record_progress=self._record_progress,
+            )
 
     def _restart_current_level(self) -> None:
-        self.next_scene = GameScene(
-            self.level_index,
-            total_elapsed=self._total_elapsed_before,
-        )
+        if self._campaign_mode:
+            self.next_scene = GameScene(
+                self.level_index,
+                total_elapsed=self._total_elapsed_before,
+                campaign_run=self._campaign_run,
+                record_progress=self._record_progress,
+            )
+        else:
+            self.next_scene = GameScene(
+                self.level_index,
+                total_elapsed=self._total_elapsed_before,
+                campaign_run=self._campaign_run,
+                level_def=self.level_def,
+                return_scene=self._return_scene,
+                record_progress=self._record_progress,
+            )
 
     def _handle_springs(self) -> None:
         if self._spring_cooldown > 0:

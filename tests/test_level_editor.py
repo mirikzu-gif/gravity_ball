@@ -4,12 +4,16 @@ import json
 import pygame
 
 from tools.level_editor import (
+    COLOR_BG,
+    COLOR_GRID,
+    COLOR_GRID_MINOR,
     LevelEditor,
     LevelDraft,
     block_rect,
     clamp_block,
     clamp_point,
     create_default_draft,
+    draw_editor_grid,
     hit_test,
     load_level_draft,
     next_level_id,
@@ -27,6 +31,20 @@ def test_snap_rounds_to_grid():
 def test_block_rect_uses_center_coordinates():
     rect = block_rect([100, 200, 50, 20])
     assert rect == pygame.Rect(75, 190, 50, 20)
+
+
+def test_draw_editor_grid_matches_snap_step():
+    surface = pygame.Surface((80, 80))
+    field = pygame.Rect(0, 0, 70, 70)
+    surface.fill(COLOR_BG)
+
+    draw_editor_grid(surface, field)
+
+    assert surface.get_at((10, 7))[:3] == COLOR_GRID_MINOR
+    assert surface.get_at((7, 10))[:3] == COLOR_GRID_MINOR
+    assert surface.get_at((50, 7))[:3] == COLOR_GRID
+    assert surface.get_at((7, 50))[:3] == COLOR_GRID
+    assert surface.get_at((15, 15))[:3] == COLOR_BG
 
 
 def test_clamp_point_keeps_ball_inside_world():

@@ -3,8 +3,11 @@ import pymunk
 import pytest
 
 from src.entities.ball import Ball
+from src.entities.goal import Goal
 from src.entities.obstacle import Obstacle
 from src.entities.platform import Platform
+from src.entities.spike import Spike
+from src.entities.spring import Spring
 from src.utils.physics import is_on_ground
 
 
@@ -67,6 +70,21 @@ def test_is_on_ground_just_above_surface_returns_false(space):
     # Верх платформы y=590, мяч с центром y=569 → нижняя точка y=569+21=590 — край.
     # Берём с запасом: центр y=550, нижняя точка y=571.
     ball = Ball(500, 550, space=space)
+    assert is_on_ground(ball, space) is False
+
+
+@pytest.mark.parametrize(
+    "factory",
+    [
+        lambda space: Spring(500, 601, 200, 20, space=space),
+        lambda space: Spike(500, 601, 200, 20, space=space),
+        lambda space: Goal(500, 601, 200, 20, space=space),
+    ],
+)
+def test_is_on_ground_ignores_sensor_shapes(space, factory):
+    """Сенсоры цели/пружин/шипов не должны разрешать зарядку прыжка."""
+    ball = Ball(500, 580, space=space)
+    factory(space)
     assert is_on_ground(ball, space) is False
 
 

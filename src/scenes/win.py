@@ -14,15 +14,20 @@ def _fmt(secs: float) -> str:
 class WinScene(Scene):
     """Экран после прохождения последнего уровня. Enter — заново с первого; Esc/Q — выход."""
 
-    def __init__(self, total_time: float = 0.0) -> None:
+    def __init__(self, total_time: float = 0.0, record_total: bool = True) -> None:
         super().__init__()
         audio.stop_background()
         self.total_time = total_time
+        self.record_total = record_total
 
-        # Если время лучше предыдущего рекорда — обновляем; запоминаем для UI.
         previous_best = best_times.best_total()
-        self.is_new_record = best_times.record_total(total_time)
-        self.best_total = previous_best if not self.is_new_record else total_time
+        if record_total:
+            # Если время лучше предыдущего рекорда — обновляем; запоминаем для UI.
+            self.is_new_record = best_times.record_total(total_time)
+            self.best_total = previous_best if not self.is_new_record else total_time
+        else:
+            self.is_new_record = False
+            self.best_total = previous_best
 
         self._title_font = fonts.title(28)
         self._time_font = fonts.ui(26)
@@ -39,6 +44,12 @@ class WinScene(Scene):
         if self.is_new_record:
             self._record_label = self._hint_font.render(
                 "★ Новый рекорд! ★", True, (200, 100, 0)
+            )
+        elif not self.record_total:
+            self._record_label = self._hint_font.render(
+                "Общий рекорд считается при старте с первого уровня",
+                True,
+                BLACK,
             )
         elif self.best_total is not None:
             self._record_label = self._hint_font.render(

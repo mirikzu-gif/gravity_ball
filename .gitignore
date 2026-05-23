@@ -226,3 +226,6 @@ Thumbs.db
 
 # Local player progress — не должно попасть в репозиторий
 best_times.json
+
+# Local custom levels created from the in-game editor
+custom_levels/

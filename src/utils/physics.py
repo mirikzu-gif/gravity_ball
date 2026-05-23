@@ -25,6 +25,6 @@ def is_on_ground(ball, space):
         offset_y = math.sin(angle) * (ball.radius + 1)
         check_point = ball.body.position + (offset_x, offset_y)
         for query in space.point_query(check_point, 0, pymunk.ShapeFilter()):
-            if query.shape != ball.shape:
+            if query.shape != ball.shape and not query.shape.sensor:
                 return True
     return False

@@ -67,3 +67,18 @@ def test_worse_time_does_not_record():
     assert scene.is_new_record is False
     assert scene.best_total == 20.0
     assert best_times.best_total() == 20.0
+
+
+def test_can_skip_total_record_for_level_select_finish():
+    scene = WinScene(total_time=10.0, record_total=False)
+    assert scene.is_new_record is False
+    assert scene.best_total is None
+    assert best_times.best_total() is None
+
+
+def test_skip_total_record_keeps_existing_best():
+    best_times.record_total(20.0)
+    scene = WinScene(total_time=10.0, record_total=False)
+    assert scene.is_new_record is False
+    assert scene.best_total == 20.0
+    assert best_times.best_total() == 20.0

@@ -145,6 +145,62 @@ def test_load_levels_block_with_wrong_arity_raises(tmp_levels_file):
         load_levels(path)
 
 
+def test_load_levels_rejects_non_numeric_block_value(tmp_levels_file):
+    path = tmp_levels_file([
+        {
+            "name": "x",
+            "ball_start": [0, 0],
+            "platforms": [["left", 2, 3, 4]],
+            "obstacles": [],
+            "goal": [1, 1, 1, 1],
+        }
+    ])
+    with pytest.raises(ValueError, match="числом"):
+        load_levels(path)
+
+
+def test_load_levels_rejects_non_finite_number(tmp_levels_file):
+    path = tmp_levels_file([
+        {
+            "name": "x",
+            "ball_start": [float("nan"), 0],
+            "platforms": [],
+            "obstacles": [],
+            "goal": [1, 1, 1, 1],
+        }
+    ])
+    with pytest.raises(ValueError, match="конечным"):
+        load_levels(path)
+
+
+def test_load_levels_rejects_non_positive_block_size(tmp_levels_file):
+    path = tmp_levels_file([
+        {
+            "name": "x",
+            "ball_start": [0, 0],
+            "platforms": [[1, 2, 0, 4]],
+            "obstacles": [],
+            "goal": [1, 1, 1, 1],
+        }
+    ])
+    with pytest.raises(ValueError, match="положительными"):
+        load_levels(path)
+
+
+def test_load_levels_rejects_empty_name(tmp_levels_file):
+    path = tmp_levels_file([
+        {
+            "name": "",
+            "ball_start": [0, 0],
+            "platforms": [],
+            "obstacles": [],
+            "goal": [1, 1, 1, 1],
+        }
+    ])
+    with pytest.raises(ValueError, match="name"):
+        load_levels(path)
+
+
 # ---------------------------------------------------------------------------
 # load_level_file (новый формат — отдельный файл на уровень)
 # ---------------------------------------------------------------------------
@@ -205,6 +261,21 @@ def test_load_manifest_levels_must_be_list(tmp_path):
         load_manifest(manifest)
 
 
+@pytest.mark.parametrize("level_id", ["", "../secret", "folder/a", "уровень"])
+def test_load_manifest_rejects_unsafe_level_ids(tmp_path, level_id):
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(json.dumps({"levels": [level_id]}), encoding="utf-8")
+    with pytest.raises(ValueError, match="безопасные"):
+        load_manifest(manifest)
+
+
+def test_load_manifest_rejects_duplicate_level_ids(tmp_path):
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(json.dumps({"levels": ["a", "a"]}), encoding="utf-8")
+    with pytest.raises(ValueError, match="повтор"):
+        load_manifest(manifest)
+
+
 # ---------------------------------------------------------------------------
 # LevelCatalog
 # ---------------------------------------------------------------------------
@@ -241,6 +312,20 @@ def test_catalog_caches(tmp_level_dir):
     first = cat[0]
     second = cat[0]
     assert first is second
+
+
+def test_catalog_reload_updates_names_and_clears_cache(tmp_level_dir):
+    cat = LevelCatalog(tmp_level_dir)
+    _ = cat[0]
+    assert cat.is_loaded(0)
+
+    manifest = tmp_level_dir
+    manifest.write_text(json.dumps({"levels": ["b"]}), encoding="utf-8")
+    cat.reload()
+
+    assert cat.names == ("b",)
+    assert not cat.is_loaded(0)
+    assert cat[0].name == "B"
 
 
 def test_catalog_iter_loads_all(tmp_level_dir):

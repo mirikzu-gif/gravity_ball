@@ -8,9 +8,11 @@
 обращении (`LEVELS[i]`), чтобы не парсить все уровни на старте.
 """
 import json
+import math
+import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, NamedTuple, Tuple, Union
+from typing import Dict, NamedTuple, Sequence, Tuple, Union
 
 from ..entities.goal import Goal
 from ..entities.obstacle import Obstacle
@@ -46,28 +48,68 @@ class LevelDef:
 
 
 _REQUIRED_FIELDS = ("name", "ball_start", "platforms", "obstacles", "goal")
+_LEVEL_ID_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
-def _block_from_list(seq) -> Block:
+def _number(value, field: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{field} должен быть числом")
+    value = float(value)
+    if not math.isfinite(value):
+        raise ValueError(f"{field} должен быть конечным числом")
+    return value
+
+
+def _block_from_list(seq, field: str = "блок") -> Block:
+    if not isinstance(seq, Sequence) or isinstance(seq, (str, bytes)):
+        raise ValueError(f"{field} должен быть массивом [x, y, w, h]")
     if len(seq) != 4:
-        raise ValueError(f"блок должен иметь 4 значения [x, y, w, h], получено {seq!r}")
-    return Block(*seq)
+        raise ValueError(f"{field} должен иметь 4 значения [x, y, w, h], получено {seq!r}")
+    x = _number(seq[0], f"{field}.x")
+    y = _number(seq[1], f"{field}.y")
+    width = _number(seq[2], f"{field}.width")
+    height = _number(seq[3], f"{field}.height")
+    if width <= 0 or height <= 0:
+        raise ValueError(f"{field}: width и height должны быть положительными")
+    return Block(x, y, width, height)
 
 
 def _level_from_dict(item: dict) -> LevelDef:
+    if not isinstance(item, dict):
+        raise ValueError(f"уровень должен быть объектом, получено {type(item).__name__}")
     missing = [f for f in _REQUIRED_FIELDS if f not in item]
     if missing:
         raise ValueError(f"в уровне отсутствуют поля: {missing}")
-    if len(item["ball_start"]) != 2:
+    name = item["name"]
+    if not isinstance(name, str) or not name.strip():
+        raise ValueError("name должен быть непустой строкой")
+    ball_start = item["ball_start"]
+    if not isinstance(ball_start, Sequence) or isinstance(ball_start, (str, bytes)):
         raise ValueError("ball_start должен быть [x, y]")
+    if len(ball_start) != 2:
+        raise ValueError("ball_start должен быть [x, y]")
+    ball_start = (
+        _number(ball_start[0], "ball_start.x"),
+        _number(ball_start[1], "ball_start.y"),
+    )
+
+    def _blocks(field: str) -> Tuple[Block, ...]:
+        blocks = item.get(field, ())
+        if not isinstance(blocks, Sequence) or isinstance(blocks, (str, bytes)):
+            raise ValueError(f"{field} должен быть массивом блоков")
+        return tuple(
+            _block_from_list(block, f"{field}[{i}]")
+            for i, block in enumerate(blocks)
+        )
+
     return LevelDef(
-        name=item["name"],
-        ball_start=tuple(item["ball_start"]),
-        platforms=tuple(_block_from_list(p) for p in item["platforms"]),
-        obstacles=tuple(_block_from_list(o) for o in item["obstacles"]),
-        goal=_block_from_list(item["goal"]),
-        springs=tuple(_block_from_list(s) for s in item.get("springs", ())),
-        spikes=tuple(_block_from_list(s) for s in item.get("spikes", ())),
+        name=name,
+        ball_start=ball_start,
+        platforms=_blocks("platforms"),
+        obstacles=_blocks("obstacles"),
+        goal=_block_from_list(item["goal"], "goal"),
+        springs=_blocks("springs"),
+        spikes=_blocks("spikes"),
     )
 
 
@@ -89,6 +131,15 @@ def load_manifest(path: Union[str, Path]) -> Tuple[str, ...]:
     levels = data["levels"]
     if not isinstance(levels, list):
         raise ValueError("manifest['levels'] должен быть массивом")
+    seen = set()
+    for level_id in levels:
+        if not isinstance(level_id, str) or not _LEVEL_ID_RE.match(level_id):
+            raise ValueError(
+                "manifest['levels'] должен содержать безопасные строковые id уровней"
+            )
+        if level_id in seen:
+            raise ValueError(f"manifest содержит повтор уровня: {level_id}")
+        seen.add(level_id)
     return tuple(levels)
 
 
@@ -113,9 +164,9 @@ class LevelCatalog:
     """
 
     def __init__(self, manifest_path: Union[str, Path]) -> None:
-        manifest_path = Path(manifest_path)
-        self._dir = manifest_path.parent
-        self._names: Tuple[str, ...] = load_manifest(manifest_path)
+        self._manifest_path = Path(manifest_path)
+        self._dir = self._manifest_path.parent
+        self._names: Tuple[str, ...] = load_manifest(self._manifest_path)
         self._cache: Dict[int, LevelDef] = {}
 
     def __len__(self) -> int:
@@ -140,12 +191,23 @@ class LevelCatalog:
     def is_loaded(self, index: int) -> bool:
         return index in self._cache
 
+    def reload(self) -> None:
+        """Перечитывает manifest и сбрасывает кэш загруженных уровней."""
+        self._names = load_manifest(self._manifest_path)
+        self._cache.clear()
+
 
 _DEFAULT_MANIFEST_PATH = (
     Path(__file__).resolve().parent.parent.parent / "levels" / "manifest.json"
 )
 
 LEVELS: LevelCatalog = LevelCatalog(_DEFAULT_MANIFEST_PATH)
+
+
+def reload_levels() -> LevelCatalog:
+    """Обновляет глобальный каталог уровней без замены объекта LEVELS."""
+    LEVELS.reload()
+    return LEVELS
 
 
 # ---------------------------------------------------------------------------

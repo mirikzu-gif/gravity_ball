@@ -1,9 +1,10 @@
 """Тесты LevelSelectScene."""
 import pygame
 
-from src.scenes.level_select import LevelSelectScene
+from src.scenes.level_select import LevelSelectScene, is_level_unlocked
 from src.scenes.menu import MenuScene
 from src.scenes.play import GameScene
+from src.utils import best_times
 from src.utils.level import LEVELS
 
 
@@ -55,6 +56,7 @@ def test_w_and_s_also_navigate():
 
 
 def test_enter_starts_game_at_selected_level():
+    best_times.record_level(LEVELS[0].name, 1.0)
     scene = LevelSelectScene(selected=1)
     scene.handle_event(_ev(pygame.KEYDOWN, key=pygame.K_RETURN))
     assert isinstance(scene.next_scene, GameScene)
@@ -65,6 +67,35 @@ def test_space_also_starts_game():
     scene = LevelSelectScene(selected=0)
     scene.handle_event(_ev(pygame.KEYDOWN, key=pygame.K_SPACE))
     assert isinstance(scene.next_scene, GameScene)
+
+
+def test_first_level_is_unlocked_by_default():
+    assert is_level_unlocked(0) is True
+
+
+def test_second_level_is_locked_without_first_completion():
+    assert is_level_unlocked(1) is False
+
+
+def test_level_unlocks_after_previous_completion():
+    best_times.record_level(LEVELS[0].name, 1.0)
+    assert is_level_unlocked(1) is True
+
+
+def test_levels_unlock_contiguously():
+    if len(LEVELS) < 3:
+        return
+    best_times.record_level(LEVELS[1].name, 1.0)
+    assert is_level_unlocked(2) is False
+
+    best_times.record_level(LEVELS[0].name, 1.0)
+    assert is_level_unlocked(2) is True
+
+
+def test_enter_locked_level_does_not_start_game():
+    scene = LevelSelectScene(selected=1)
+    scene.handle_event(_ev(pygame.KEYDOWN, key=pygame.K_RETURN))
+    assert scene.next_scene is None
 
 
 def test_escape_returns_to_menu():
